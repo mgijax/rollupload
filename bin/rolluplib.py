@@ -47,6 +47,8 @@ REPORTER = 11025589		# term key for Reporter allele attribute
 TRANSGENIC = 847126		# term key for Transgenic allele type
 RECOMBINASE = 11025588		# term key for Recombinase allele attribute
 
+NO_PHENOTYPIC_ANALYSIS = 293594	# term key for 'no phenotypic analysis' term
+
 GT_ROSA = 37270			# marker key for Gt(ROSA)26Sor marker
 
 INITIALIZED = False		# have we finished initializing this module?
@@ -236,6 +238,10 @@ class Marker:
 		for annotRow in self.annotations:
 			annotKey = annotRow['_Annot_key']
 
+			if annotRow['_Term_key'] == NO_PHENOTYPIC_ANALYSIS:
+				# skip annotations to this term
+				continue
+
 			termID = TERM_MAP.get(annotRow['_Term_key'])
 			markerID = MARKER_MAP.get(annotRow['_Marker_key'])
 			qualifier = QUALIFIER_MAP.get(
@@ -350,8 +356,10 @@ def _countAllelePairsPerGenotype():
 		from GXD_AllelePair p
 		where exists (select 1 from VOC_Annot v
 			where v._AnnotType_key in (%d)
+			and v._Term_key != %d
 			and v._Object_key = p._Genotype_key)
-		group by p._Genotype_key''' % CURRENT_ANNOT_TYPE
+		group by p._Genotype_key''' % (CURRENT_ANNOT_TYPE,
+			NO_PHENOTYPIC_ANALYSIS)
 	
 	db.sql(cmd0, 'auto')
 	_stamp('Built & filled #genotype_pair_counts table')
@@ -652,10 +660,12 @@ def _getMarkerMetaData():
 	LAST_MARKER_KEY_INDEX = None
 
 	cmd22 = '''select k._Marker_key, count(1) as annotation_count
-		from #genotype_keepers k, voc_annot a
+		from #genotype_keepers k, VOC_Annot a
 		where k._Genotype_key = a._Object_key
 		and a._AnnotType_key in (%s)
-		group by k._Marker_key''' % CURRENT_ANNOT_TYPE
+		and a._Term_key != %d
+		group by k._Marker_key''' % (CURRENT_ANNOT_TYPE,
+			NO_PHENOTYPIC_ANALYSIS)
 
 	results = db.sql(cmd22, 'auto')
 
@@ -862,9 +872,11 @@ def _getAnnotations (startMarker, endMarker):
 		from #genotype_keepers k, VOC_Annot a
 		where k._Genotype_key = a._Object_key
 			and a._AnnotType_key in (%d)
+			and a._Term_key != %d
 			and k._Marker_key >= %d
 			and k._Marker_key <= %d''' % (
-				CURRENT_ANNOT_TYPE, startMarker, endMarker)
+				CURRENT_ANNOT_TYPE, NO_PHENOTYPIC_ANALYSIS,
+				startMarker, endMarker)
 
 	return _makeDictionary (db.sql(cmd23, 'auto'), '_Marker_key')
 
@@ -880,10 +892,12 @@ def _getEvidence (startMarker, endMarker):
 			VOC_Evidence e
 		where k._Genotype_key = a._Object_key
 			and a._AnnotType_key in (%d)
+			and a._Term_key != %d
 			and k._Marker_key >= %d
 			and k._Marker_key <= %d
 			and a._Annot_key = e._Annot_key''' % (
-				CURRENT_ANNOT_TYPE, startMarker, endMarker)
+				CURRENT_ANNOT_TYPE, NO_PHENOTYPIC_ANALYSIS,
+				startMarker, endMarker)
 
 	return _makeDictionary (db.sql(cmd24, 'auto'), '_Annot_key')
 
@@ -898,12 +912,14 @@ def _getEvidenceProperties (startMarker, endMarker):
 			VOC_Evidence_Property p
 		where k._Genotype_key = a._Object_key
 			and a._AnnotType_key in (%d)
+			and a._Term_key != %d
 			and k._Marker_key >= %d
 			and k._Marker_key <= %d
 			and a._Annot_key = e._Annot_key
 			and e._AnnotEvidence_key = p._AnnotEvidence_key
 		order by p._AnnotEvidence_key, p.stanza, p.sequenceNum''' % (
-			CURRENT_ANNOT_TYPE, startMarker, endMarker)
+			CURRENT_ANNOT_TYPE, NO_PHENOTYPIC_ANALYSIS,
+			startMarker, endMarker)
 
 	return _makeDictionary (db.sql(cmd25, 'auto'), '_AnnotEvidence_key') 
 
@@ -923,13 +939,15 @@ def _getNotes (startMarker, endMarker):
 			MGI_Note n
 		where k._Genotype_key = a._Object_key
 			and a._AnnotType_key in (%d)
+			and a._Term_key != %d
 			and k._Marker_key >= %d
 			and k._Marker_key <= %d
 			and a._Annot_key = e._Annot_key
 			and e._AnnotEvidence_key = n._Object_key
 			and n._NoteType_key in (%d, %d)
 		order by e._AnnotEvidence_key''' % (
-			CURRENT_ANNOT_TYPE, startMarker, endMarker,
+			CURRENT_ANNOT_TYPE, NO_PHENOTYPIC_ANALYSIS,
+			startMarker, endMarker,
 			GENERAL_NOTE, BACKGROUND_SENSITIVITY_NOTE)
 
 	results = db.sql(cmd26, 'auto')
@@ -958,6 +976,7 @@ def _getNotes (startMarker, endMarker):
 			MGI_NoteChunk c
 		where k._Genotype_key = a._Object_key
 			and a._AnnotType_key in (%d)
+			and a._Term_key != %d
 			and k._Marker_key >= %d
 			and k._Marker_key <= %d
 			and a._Annot_key = e._Annot_key
@@ -965,7 +984,8 @@ def _getNotes (startMarker, endMarker):
 			and n._NoteType_key in (%d, %d)
 			and n._Note_key = c._Note_key
 		order by c._Note_key, c.sequenceNum''' % (
-			CURRENT_ANNOT_TYPE, startMarker, endMarker,
+			CURRENT_ANNOT_TYPE, NO_PHENOTYPIC_ANALYSIS,
+			startMarker, endMarker,
 			GENERAL_NOTE, BACKGROUND_SENSITIVITY_NOTE)
 
 	results = db.sql(cmd27, 'auto')

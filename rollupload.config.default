@@ -1,0 +1,86 @@
+#format: sh
+#
+#  rollupload.config
+#
+#  This file sets up environment variables that are needed for a specific
+#  data provider input file to be handled by the annotation loader.
+#
+###########################################################################
+
+###########################################################################
+#
+#  GENERAL SETTINGS
+#
+###########################################################################
+
+#
+#  If the MGICONFIG environment variable does not have a local override,
+#  use the default "live" settings.
+#
+if [ "${MGICONFIG}" = "" ]
+then
+    MGICONFIG=/usr/local/mgi/live/mgiconfig
+    export MGICONFIG
+fi
+
+. ${MGICONFIG}/master.config.sh
+
+#  Annotation Loader shell script
+ANNOTLOADER_CSH=${ANNOTLOAD}/annotload.csh
+
+export ANNOTLOADER_CSH
+
+###########################################################################
+#
+#  LOAD SPECIFIC SETTINGS
+#
+###########################################################################
+
+#  Path name of the archive, logs, reports and output directories
+FILEDIR=${DATALOADSOUTPUT}/rollupload
+ARCHIVEDIR=${FILEDIR}/archive
+LOGDIR=${FILEDIR}/logs
+RPTDIR=${FILEDIR}/reports
+OUTPUTDIR=${FILEDIR}/output
+
+# directory where input files are created by rollupload.py
+INPUTDIR=${FILEDIR}/input
+DISEASE_INFILE_NAME=${INPUTDIR}/diseaseMarker.annot
+MP_INFILE_NAME=${INPUTDIR}/mpMarker.annot
+
+export FILEDIR ARCHIVEDIR LOGDIR RPTDIR OUTPUTDIR
+export INPUTDIR MP_INFILE_NAME DISEASE_INFILE_NAME
+
+#  Complete path name of the log files
+LOG_FILE=${LOGDIR}/rollupload.log
+LOG_PROC=${LOGDIR}/rollupload.proc.log
+LOG_DIAG=${LOGDIR}/rollupload.diag.log
+LOG_CUR=${LOGDIR}/rollupload.cur.log
+LOG_VAL=${LOGDIR}/rollupload.val.log
+
+#  Send debug messages to the diagnostic log (true or false)
+LOG_DEBUG=false
+
+export LOG_FILE LOG_PROC LOG_DIAG LOG_CUR LOG_VAL LOG_DEBUG
+
+#  The name of the job stream for the load
+JOBSTREAM=rollupload
+
+export JOBSTREAM
+
+###########################################################################
+#
+#  MISCELLANEOUS SETTINGS
+#
+###########################################################################
+
+#  The name of the load for the subject of an email notification
+MAIL_LOADNAME="Marker Rollup annotation load"
+
+#  Recipient list for mailing the log files (comma-separated)
+MAIL_LOG_PROC="mgiadmin"
+
+export MAIL_LOADNAME MAIL_LOG_PROC
+
+INSTALLDIR=${ROLLUPLOAD}
+export INSTALLDIR

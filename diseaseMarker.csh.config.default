@@ -1,0 +1,18 @@
+#!/bin/csh -f
+
+#
+# defaults for annotation load of "OMIM/Marker (Derived)" annotation type
+#
+
+#source ${ANNOTLOAD}/Configuration
+
+setenv ANNOTDATADIR	${DATALOADSOUTPUT}/rollupload/input
+setenv ANNOTMODE	new
+setenv ANNOTTYPENAME	"OMIM/Marker (Derived)"
+setenv ANNOTPROPERTY    0
+setenv ANNOTINPUTFILE	${ANNOTDATADIR}/diseaseMarker.annot
+setenv ANNOTLOG		${ANNOTINPUTFILE}.log
+setenv DELETEREFERENCE	"J:0"
+setenv DELETEUSER	"none"
+setenv ANNOTOBSOLETE	0
+

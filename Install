@@ -33,6 +33,15 @@ fi
 #
 cd `dirname $0`
 
+# make copies of config files for annotload, if they don't already exist
+for prefix in diseaseMarker mpMarker
+do
+    if [ ! -r ${prefix}.csh.config ]; then
+	cp ${prefix}.csh.config.default ${prefix}.csh.config
+	echo "Created ${prefix}.csh.config"
+    fi
+done
+
 # establish the config files
 MAIN_CONFIG=rollupload.config
 

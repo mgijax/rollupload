@@ -21,6 +21,7 @@ MAX_ANNOTATIONS = 10000		# maximum number of annotations to cache in
 				# ...memory at once
 
 PROFILING_ON = True		# is profiling turned on currently?
+DEBUG = True			# write debugging output to stderr?
 
 MGI = 1				# logical DB key for MGI
 
@@ -50,6 +51,14 @@ RECOMBINASE = 11025588		# term key for Recombinase allele attribute
 NO_PHENOTYPIC_ANALYSIS = 293594	# term key for 'no phenotypic analysis' term
 
 GT_ROSA = 37270			# marker key for Gt(ROSA)26Sor marker
+HPRT = 9936			# marker key for Hprt marker
+COL1A1 = 1092			# marker key for Col1a1 marker
+
+DOCKING_SITES = [ GT_ROSA, HPRT, COL1A1 ]	# loci that can be generally
+				# ...knocked into without causing a phenotype
+
+MUTATION_INVOLVES = 1003	# category key for 'mutation involves'
+EXPRESSES_COMPONENT = 1004	# category key for 'expresses component'
 
 INITIALIZED = False		# have we finished initializing this module?
 
@@ -64,6 +73,8 @@ LAST_MARKER_KEY_INDEX = None	# index into MARKER_KEYS of last marker key
 
 MARKERS_TO_DO = []		# list of markers loaded and waiting to be
 				# ...processed
+
+TRANSGENE = 12			# marker type key for transgenes
 
 TERM_MAP = None			# KeyMap for term key -> term ID
 MARKER_MAP = None		# KeyMap for marker key -> marker ID
@@ -346,6 +357,42 @@ def _stamp (s):
 		PROFILER.stamp (s)
 	return
 
+def _getCount(table):
+	results = db.sql('select count(1) from %s' % table, 'auto')
+	if not results:
+		return 0
+	return results[0]['']
+
+def _identifyExpressesComponentData():
+	# builds a #has_expresses_component temp table with (genotype key,
+	# allele key) pairs for those genotypes and alleles with 'expresses
+	# component' relationships
+
+	HEC = '#has_expresses_component'
+
+	cmdI = '''select distinct gag._Genotype_key,
+			gag._Allele_key
+		into %s
+		from VOC_Annot a,
+			GXD_AlleleGenotype gag,
+			MGI_Relationship mr
+		where a._AnnotType_key = %d
+			and a._Term_key != %d
+			and a._Object_key = gag._Genotype_key
+			and gag._Allele_key = mr._Object_key_1
+			and mr._Category_key = %d''' % (HEC,
+				CURRENT_ANNOT_TYPE, NO_PHENOTYPIC_ANALYSIS,
+				EXPRESSES_COMPONENT)
+
+	cmdII = 'create index hec1 on %s (_Genotype_key)' % HEC
+	cmdIII = 'create index hec2 on %s (_Allele_key)' % HEC
+
+	for cmd in [ cmdI, cmdII, cmdIII ]:
+		db.sql(cmd, 'auto')
+
+	_stamp('Built %s table with %d rows' % (HEC, _getCount(HEC)))
+	return
+
 def _countAllelePairsPerGenotype():
 	# collect into a temp table (#genotype_pair_counts) the genotypes that
 	# have annotations attached, along with the count of allele pairs for
@@ -362,7 +409,8 @@ def _countAllelePairsPerGenotype():
 			NO_PHENOTYPIC_ANALYSIS)
 	
 	db.sql(cmd0, 'auto')
-	_stamp('Built & filled #genotype_pair_counts table')
+	_stamp('Built #genotype_pair_counts table with %d rows' % \
+		_getCount('#genotype_pair_counts'))
 
 	# index by pair_count, as we will be using that for processing
 
@@ -386,25 +434,33 @@ def _buildKeepersTable():
 	_stamp('Created #genotype_keepers table')
 	return
 
-def _keepSuperSimpleGenotypes():
-	# add to the keepers table the super-simple genotypes, which are those
-	# with:
-	#   1. only one allele pair
-	#   2. at least one mutant (non-wildtype) allele
+def _keepNaturallySimpleGenotypes():
+	# add to the keepers table the naturally simple genotypes, which are
+	# those with:
+	#   1. only one marker (same as: only one allele pair)
+	#   2. no "expresses component" relationships
+	#   3. no conditional flag
 
 	cmd3 = '''insert into #genotype_keepers
-		select g._Genotype_key, "super-simple", p._Marker_key
+		select g._Genotype_key, "naturally simple", p._Marker_key
 		from #genotype_pair_counts g,
-			GXD_AllelePair p
+			GXD_AllelePair p,
+			GXD_Genotype gg
 		where g.pair_count = 1
 			and g._Genotype_key = p._Genotype_key
+			and p._Genotype_key = gg._Genotype_key
+			and gg.isConditional = 0
 			and exists (select 1
 				from GXD_AlleleGenotype gag, ALL_Allele a
 				where g._Genotype_key = gag._Genotype_key
 				and gag._Allele_key = a._Allele_key
-				and a.isWildType = 0)'''
+				and a.isWildType = 0)
+			and not exists (select 1
+				from #has_expresses_component ec
+				where g._Genotype_key = ec._Genotype_key)'''
 	db.sql(cmd3, 'auto')
-	_stamp('Added super-simple genotypes to #genotype_keepers')
+	_stamp('Added %d naturally simple genotypes to #genotype_keepers' % \
+		_getCount('#genotype_keepers'))
 	return
 
 def _indexKeepersTable():
@@ -444,7 +500,8 @@ def _identifyReporterTransgenes():
 				and b._Term_key != %d)''' % (
 		ALLELE_SUBTYPE, REPORTER, TRANSGENIC, ALLELE_SUBTYPE, REPORTER)
 	db.sql(cmd4, 'auto')
-	_stamp('Built & filled #reporter_transgenes table')
+	_stamp('Built #reporter_transgenes table with %d rows' % \
+		_getCount('#reporter_transgenes'))
 
 	# build a unique index on the allele key for the reporter transgenes
 
@@ -468,13 +525,13 @@ def _buildScratchPad():
 		from #genotype_pair_counts c,
 			GXD_AlleleGenotype gag,
 			GXD_Genotype g
-		where c.pair_count != 1
-			and c._Genotype_key = gag._Genotype_key
+		where c._Genotype_key = gag._Genotype_key
 			and c._Genotype_key = g._Genotype_key
 			and not exists (select 1 from #genotype_keepers k
 				where c._Genotype_key = k._Genotype_key)'''
 	db.sql(cmd6, 'auto')
-	_stamp('Built & filled #scratchpad table')
+	_stamp('Built #scratchpad table with %d rows' % \
+		_getCount('#scratchpad'))
 
 	# build an index on allele key for performance
 
@@ -483,8 +540,31 @@ def _buildScratchPad():
 	_stamp('Indexed alleles in #scratchpad')
 	return
 
+def _cleanupConditionalGenotypes():
+	# For conditional genotypes, we need to remove recombinase alleles
+	# from consideration -- if those recombinase alleles do not have
+	# expresses component relationships.
+
+	before = _getCount('#scratchpad')
+
+	cmd11 = '''delete from #scratchpad 
+		where isConditional = 1
+			and _Allele_key not in (select _Allele_key
+				from #has_expresses_component)
+			and _Allele_key in (select _Object_key
+				from VOC_Annot 
+				where _AnnotType_key = %d
+				and _Term_key = %d)''' % (
+					ALLELE_SUBTYPE, RECOMBINASE)
+	db.sql(cmd11, 'auto')
+	_stamp('Removed %d recombinase alleles from #scratchpad' % (
+		before - _getCount('#scratchpad')) ) 
+	return
+
 def _removeReporterTransgenes():
 	# remove from the scratch pad any alleles which are reporter transgenes
+
+	before = _getCount('#scratchpad')
 
 	# Remove alleles which are reporter transgenes.  These appear to be
 	# either hemizygous (only one allele in the pair) or homozygous (with
@@ -494,7 +574,8 @@ def _removeReporterTransgenes():
 		where _Allele_key in (select _Allele_key
 			from #reporter_transgenes)'''
 	db.sql(cmd8, 'auto')
-	_stamp('Removed reporter transgenes from #scratchpad')
+	_stamp('Removed %d reporter transgenes from #scratchpad' % (
+		before - _getCount('#scratchpad')) )
 	return 
 
 def _identifyWildTypeAlleles():
@@ -508,7 +589,8 @@ def _identifyWildTypeAlleles():
 		where s._Allele_key = a._Allele_key
 			and a.isWildType = 1'''
 	db.sql(cmd9, 'auto')
-	_stamp('Built & filled #wildtype_alleles table')
+	_stamp('Built #wildtype_alleles table with %d rows' % \
+		_getCount('#wildtype_alleles'))
 
 	# build an index on allele key for performance
 
@@ -518,119 +600,366 @@ def _identifyWildTypeAlleles():
 	_stamp('Indexed alleles in #wildtype_alleles')
 	return
 
-def _cleanupConditionalGenotypes():
-	# For conditional genotypes, we need to remove recombinase alleles
-	# from consideration.
-
-	cmd11 = '''delete from #scratchpad 
-		where isConditional = 1
-			and _Allele_key in (select _Object_key
-				from VOC_Annot 
-				where _AnnotType_key = %d
-				and _Term_key = %d)''' % (
-					ALLELE_SUBTYPE, RECOMBINASE)
-	db.sql(cmd11, 'auto')
-	_stamp('Removed recombinase alleles from #scratchpad') 
-
-	# For conditional genotypes, we also need to remove wild-type alleles.
-
-	cmd12 = '''delete from #scratchpad
-		where isConditional = 1
-			and _Allele_key in (select _Allele_key
-			from #wildtype_alleles)'''
-	db.sql(cmd12, 'auto')
-	_stamp('Removed wild-type alleles from #scratchpad')
-	return
-
-def _buildSingleMarkerTable():
-	# We need to now identify those genotypes which have only one marker
-	# remaining.  We'll dump these into a temp #genotype_marker_counts
-	# table.
-
-	cmd13 = '''select _Genotype_key,
-			count(distinct _Marker_key) as marker_count
-		into #genotype_marker_counts
-		from #scratchpad
-		group by _Genotype_key
-		having count(distinct _Marker_key) = 1'''
-	db.sql(cmd13, 'auto')
-	_stamp('Built & filled #genotype_marker_counts')
-
-	# build an index on genotype key for performance
-
-	cmd14 = '''create unique index #gmc_genotype
-		on #genotype_marker_counts (_Genotype_key)'''
-	db.sql(cmd14, 'auto')
-	_stamp('Indexed genotypes in #genotype_marker_counts')
-	return
-
-def _keepSimpleGenotypes():
-	# Add the genotypes which now have a single marker to the set of
-	# keepers.
-
-	cmd15 = '''insert into #genotype_keepers
-		select distinct s._Genotype_key,
-			"simple",
-			s._Marker_key
-		from #genotype_marker_counts gmc,
-			#scratchpad s
-		where gmc._Genotype_key = s._Genotype_key'''
-	db.sql(cmd15, 'auto')
-	_stamp('Added pairs to #genotype_keepers')
-	return
-
-def _removeSimpleGenotypesFromScratchPad():
-	# Remove the genotypes we just handled from further consideration.
-
-	cmd16 = '''delete from #scratchpad 
-		where _Genotype_key in (
-			select _Genotype_key from #genotype_marker_counts)'''
-	db.sql(cmd16, 'auto')
-	_stamp('Removed those genotypes from #scratchpad')
-	return
-
 def _removeWildTypeAllelesFromScratchPad():
-	# Remove any remaining wild-type alleles.  (We had removed them only
-	# for conditional genotypes previously.)
+	# Remove any remaining wild-type alleles.
+
+	before = _getCount('#scratchpad')
 
 	cmd17 = '''delete from #scratchpad 
 		where _Allele_key in (select _Allele_key
 			from #wildtype_alleles)'''
 	db.sql(cmd17, 'auto')
-	_stamp('Removed remaining wild-type alleles')
+	_stamp('Removed %d wild-type alleles from #scratchpad' % (
+		before - _getCount('#scratchpad')) )
 	return
 
-def _refreshSingleMarkerTable():
-	# clean out the #genotype_marker_counts table and repopulate it with
-	# new data
+def _collectMarkerSets():
+	# builds several temp tables with markers tied to genotypes by three
+	# routes:  traditional marker/allele pairings, expressed component
+	# relationships, and mutation involves relationships.  Note that the
+	# temp tables will only contain data for genotypes (and only through
+	# alleles) which still exist in #scratchpad.  Also note that these
+	# only include genotypes which have annotations of the current
+	# annotation type.  Still another note -- we exclude genotypes where
+	# the only annotation is to 'no phenotypic analysis'.
 
-	cmd18 = '''delete from #genotype_marker_counts'''
-	db.sql(cmd18, 'auto')
-	_stamp('Truncated #genotype_marker_counts')
+	# The temp tables we will build include:
+	# 1. #trad - genotype-to-marker via the traditional allele-marker route
+	# 2. #mi - genotype-to-marker via the mutation involves route
+	# 3. #ec - genotype-to-marker via the expresses component route
+	# 4. #trad_ct - genotype to count of its markers in #trad
+	# 5. #mi_ct - genotype to count of its markers in #mi
+	# 6. #ec_ct - genotype to count of its markers in #ec
 
-	# re-populate #genotype_marker_counts with the genotypes that have now
-	# been reduced to a single causative marker.
+	# command to build table 1 (distinct genotype/marker pairs)
 
-	cmd19 = '''insert into #genotype_marker_counts
-		select _Genotype_key,
-			count(distinct _Marker_key) as marker_count
-		from #scratchpad
-		group by _Genotype_key
-		having count(distinct _Marker_key) = 1'''
-	db.sql(cmd19, 'auto')
-	_stamp('Refilled #genotype_marker_counts')
+	tradCmd = '''select distinct s._Genotype_key,
+			s._Marker_key
+		into #trad
+		from #scratchpad s,
+			ALL_Allele a
+		where s._Allele_key = a._Allele_key'''
+
+	# commands to build tables 2 & 3 (distinct genotype/marker pairs)
+
+	templateA = '''select distinct s._Genotype_key,
+			mr._Object_key_2 as _Marker_key
+		into %s
+		from #scratchpad s,
+			MGI_Relationship mr
+		where s._Allele_key = mr._Object_key_1
+			and mr._Category_key = %d'''
+
+	miCmd = templateA % ('#mi', MUTATION_INVOLVES)
+	ecCmd = templateA % ('#ec', EXPRESSES_COMPONENT)
+
+	# commands to index tables 1-3
+
+	templateB = 'create index %s on %s (_Genotype_key)'
+
+	tradB = templateB % ('#tradIndex1', '#trad')
+	ecB = templateB % ('#ecIndex1', '#ec')
+	miB = templateB % ('#miIndex1', '#mi')
+
+	# commands to build tables 4-6 (counts of distinct markers/genotype)
+
+	templateC = '''select _Genotype_key,
+			count(1) as marker_count
+		into %s
+		from %s
+		group by _Genotype_key'''
+
+	tradC = templateC % ('#trad_ct', '#trad')
+	ecC = templateC % ('#ec_ct', '#ec')
+	miC = templateC % ('#mi_ct', '#mi')
+
+	# commands to index tables 4-6
+
+	tradD = templateB % ('#tradIndex2', '#trad_ct')
+	ecD = templateB % ('#ecIndex2', '#ec_ct')
+	miD = templateB % ('#miIndex2', '#mi_ct')
+	
+	templateE = 'create index %s on %s (marker_count)'
+
+	tradE = templateE % ('#tradIndex3', '#trad_ct')
+	ecE = templateE % ('#ecIndex3', '#ec_ct')
+	miE = templateE % ('#miIndex3', '#mi_ct')
+
+	# build and index each table, and report on completion for profiling
+
+	for (name, tbl1, tbl2, c1, c2, c3, c4, c5) in [
+		('traditional', '#trad', '#trad_ct',
+			tradCmd, tradB, tradC, tradD, tradE),
+		('mutation involves', '#mi', '#mi_ct',
+			miCmd, miB, miC, miD, miE),
+		('expresses component', '#ec', '#ec_ct',
+			ecCmd, ecB, ecC, ecD, ecE)
+		]:
+
+		db.sql(c1, 'auto')
+		db.sql(c2, 'auto')
+		_stamp('Built table of %s genotype/marker pairs with %d rows'\
+			% (name, _getCount(tbl1)) )
+
+		db.sql(c3, 'auto')
+		db.sql(c4, 'auto')
+		db.sql(c5, 'auto')
+		_stamp('Built table of %s genotype/marker counts with %d rows'\
+			% (name, _getCount(tbl2)) )
+	return
+
+def _handleMultipleMarkers():
+	# for genotypes where multiple markers remain, we only allow one rule
+	# by which to roll up annotations:
+	#	if there are no markers through 'mutation involves' AND
+	#		there are exacty two markers AND
+	#		one is a transgene AND
+	#		the other is a non-transgene AND
+	#		the transgene 'expresses' only the non-transgene
+	#			through an 'expresses component' relationship
+	#	then we roll up annotations to both markers
+	# This function leaves #scratchpad with only genotypes having a single
+	# marker due to traditional marker-to-allele pairings.
+
+	before = _getCount('#genotype_keepers')
+
+	template = '''insert into #genotype_keepers
+		select s._Genotype_key, "transgene rule A", %s
+		from #scratchpad s,
+			#trad_ct tc, 
+			#trad tt, 
+			MRK_Marker mt,
+			#trad tn,
+			MRK_Marker nt
+		where 
+			-- no 'mutation involves'
+			not exists (select 1 from #mi_ct mc
+				where s._Genotype_key = mc._Genotype_key)
+
+			-- exactly two markers
+			and s._Genotype_key = tc._Genotype_key
+			and tc.marker_count = 2
+
+			-- one transgene
+			and s._Genotype_key = tt._Genotype_key
+			and tt._Marker_key = mt._Marker_key
+			and mt._Marker_Type_key = %d
+
+			-- one non-transgene
+			and s._Genotype_key = tn._Genotype_key
+			and tn._Marker_key = nt._Marker_key
+			and nt._Marker_Type_key != %d
+
+			-- transgene expresses non-transgene
+			and exists (select 1
+				from MGI_Relationship r1, ALL_Allele a
+				where r1._Category_key = %d
+				and mt._Marker_key = a._Marker_key
+				and a._Allele_key = r1._Object_key_1
+				and r1._Object_key_2 = nt._Marker_key)
+
+			-- transgene does not express any other marker
+			and not exists (select 1
+				from MGI_Relationship r2, ALL_Allele a2
+				where r2._Category_key = %d
+				and mt._Marker_key = a2._Marker_key
+				and a2._Allele_key = r2._Object_key_1
+				and r2._Object_key_2 != nt._Marker_key)''' % (
+			'%s',
+			TRANSGENE, TRANSGENE,
+			EXPRESSES_COMPONENT, EXPRESSES_COMPONENT)
+
+	transgeneCmd = template % 'mt._Marker_key'
+	otherCmd = template % 'nt._Marker_key'
+
+	db.sql(transgeneCmd, 'auto')
+	db.sql(otherCmd, 'auto')
+
+	_stamp('Added %d rows to #genotype_keepers for transgene rule A' % \
+		(_getCount('#genotype_keepers') - before))
+
+	beforeSP = _getCount('#scratchpad')
+
+	cmdDel = '''delete from #scratchpad 
+		where _Genotype_key in (select _Genotype_key
+			from #trad_ct
+			where marker_count > 1)'''
+	db.sql(cmdDel, 'auto')
+	_stamp('Removed %d multi-marker genotypes from #scratchpad' % (
+		beforeSP - _getCount('#scratchpad')))
+	return
+
+def _handleMutationInvolves():
+	# Assumes: all genotypes in #scratchpad have a single marker via the
+	#	traditional marker-to-allele pairs.  Also assumes that we'll
+	#	delete Gt(ROSA) data later.
+	# This function handles the case where a genotype has one or more
+	# markers associated due to 'mutation involves' relationships.
+
+	# presence in #mi_ct implies that the count of mutation involves
+	# relationships for the genotype is > 0.
+
+	cmdMI = '''insert into #genotype_keepers
+		select s._Genotype_key, "mutation involves rule", s._Marker_key
+		from #scratchpad s, #mi_ct mc
+		where s._Genotype_key = mc._Genotype_key'''
+
+	before = _getCount('#genotype_keepers')
+	db.sql(cmdMI, 'auto')
+	_stamp('Added %d rows to #genotype_keepers for mutation involves rule'\
+		% (_getCount('#genotype_keepers') - before))
+
+	before2 = _getCount('#scratchpad')
+	cmdDel = '''delete from #scratchpad
+		where _Genotype_key in (select _Genotype_key from #mi_ct)'''
+	db.sql(cmdDel, 'auto')
+	_stamp('Removed %d rows from #scratchpad due to mutation involves rule'\
+		% (before2 - _getCount('#scratchpad')) )
+	return
+
+def _handleTransgenes():
+	# Assumes: all genotypes in #scratchpad have a single marker via the
+	#	traditional marker-to-allele pairs.  Also assumes that we'll
+	#	delete Gt(ROSA) data later.
+	# This function handles the case where the associated marker is a
+	# transgene, including a special case where the transgene has a single
+	# expressed component relationship.
+
+	# single marker is a transgene
+	cmdTg = '''insert into #genotype_keepers
+		select s._Genotype_key, "transgene rule B", s._Marker_key
+		from #scratchpad s, MRK_Marker m
+		where s._Marker_key = m._Marker_key
+			and m._Marker_Type_key = %d''' % TRANSGENE
+
+	# single marker is a transgene with one expressed component, also
+	# include the expressed component marker
+	cmdEC = '''insert into #genotype_keepers
+		select s._Genotype_key, "transgene rule B", ec._Marker_key
+		from #scratchpad s,
+			MRK_Marker m, 
+			#ec_ct ct,
+			#ec ec
+		where s._Marker_key = m._Marker_key
+			and m._Marker_Type_key = %d
+			and s._Genotype_key = ec._Genotype_key
+			and s._Genotype_key = ct._Genotype_key
+			and ct.marker_count = 1''' % TRANSGENE
+
+	# delete genotypes with transgene markers from #scratchpad
+	cmdDel = '''delete from #scratchpad
+		where _Genotype_key in (select s._Genotype_key
+			from #scratchpad s, MRK_Marker m
+			where s._Marker_key = m._Marker_key
+			and m._Marker_Type_key = %d)''' % TRANSGENE
+
+	ct1 = _getCount('#genotype_keepers')
+	db.sql(cmdTg, 'auto')
+	ct2 = _getCount('#genotype_keepers')
+	_stamp('Added %d rows to #genotype_keepers for transgenes' % (
+		ct2 - ct1))
+
+	db.sql(cmdEC, 'auto')
+	_stamp('Added %d rows to #genotype_keepers for expressed components' \
+		% (_getCount('#genotype_keepers') - ct2))
+
+	ct3 = _getCount('#scratchpad')
+	db.sql(cmdDel, 'auto')
+	_stamp('Removed %d rows from #scratchpad for transgenes' % (
+		ct3 - _getCount('#scratchpad')) )
+	return
+
+def _handleDockingSites():
+	# Assumes: all genotypes in #scratchpad have a single marker via the
+	#	traditional marker-to-allele pairs.  Also assumes that we'll
+	#	delete Gt(ROSA) data later.
+	# This function handles the case where the marker associated with a
+	# genotype is a docking site.
+
+	docking_sites = ','.join(map(str, DOCKING_SITES))
+
+	cmdDS = '''insert into #genotype_keepers
+		select s._Genotype_key, "docking site rule", ec._Marker_key
+		from #scratchpad s,
+			#ec_ct ct,
+			#ec ec
+		where s._Marker_key in (%s)
+			and s._Genotype_key = ct._Genotype_key
+			and ct.marker_count = 1
+			and s._Genotype_key = ec._Genotype_key''' % \
+				docking_sites
+
+	cmdDel = '''delete from #scratchpad
+		where _Marker_key in (%s)''' % docking_sites
+
+	ct1 = _getCount('#genotype_keepers')
+	db.sql(cmdDS, 'auto')
+	_stamp('Added %d rows to #genotype_keepers for docking sites' % (
+		_getCount('#genotype_keepers') - ct1))
+
+	ct2 = _getCount('#scratchpad')
+	db.sql(cmdDel, 'auto')
+	_stamp('Removed %d rows from scratchpad for docking sites' % (
+		ct2 - _getCount('#scratchpad')) )
+	return
+
+def _handleOtherSingles():
+	# Assumes: all genotypes in #scratchpad have a single marker via the
+	#	traditional marker-to-allele pairs.  Also assumes that we'll
+	#	delete Gt(ROSA) data later.  And, assumes that transgenes 
+	#	and docking sites have been removed from #scratchpad.
+	# This function handles genotypes with a single marker that is not
+	# a transgene or a docking site, where that single marker may or may
+	# not be the sole expressed component of itself.
+
+	# singles with no expressed components
+	cmd1 = '''insert into #genotype_keepers
+		select s._Genotype_key, "other singles, no EC", s._Marker_key
+		from #scratchpad s
+		where not exists (select 1 from #ec_ct ct
+			where s._Genotype_key = ct._Genotype_key)'''
+
+	# singles where the marker knows how to express itself
+	cmd2 = '''insert into #genotype_keepers
+		select s._Genotype_key,
+			"other singles, expresses self",
+			s._Marker_key
+		from #scratchpad s,
+			#ec_ct ct,
+			#ec ec
+		where s._Genotype_key = ct._Genotype_key
+			and ct.marker_count = 1
+			and s._Genotype_key = ec._Genotype_key
+			and s._Marker_key = ec._Marker_key'''
+
+	ct1 = _getCount('#genotype_keepers')
+	db.sql(cmd1, 'auto')
+	ct2 = _getCount('#genotype_keepers')
+	_stamp('Added %d rows to #genotype_keepers for singles with no EC' % \
+		(ct2 - ct1))
+
+	db.sql(cmd2, 'auto')
+	_stamp('Added %d rows to #genotype_keepers for self-expressing singles'\
+		% (_getCount('#genotype_keepers') - ct2))
 	return
 
 def _removeNullsAndGtRosa():
 	# finally, delete all the genotypes associated with Gt(ROSA)26Sor
 
+	ct1 = _getCount('#genotype_keepers')
+
 	cmd20 = '''delete from #genotype_keepers
 		where _Marker_key = %d''' % GT_ROSA
 	db.sql(cmd20, 'auto')
+	ct2 = _getCount('#genotype_keepers')
+	_stamp('Removed %d genotypes associated with Gt(ROSA)26Sor' % (
+		ct1 - ct2))
+
 	cmd21 = '''delete from #genotype_keepers
 		where _Marker_key is null'''
 	db.sql(cmd21, 'auto')
-	_stamp('Removed genotypes for null marker and Gt(ROSA)')
+	_stamp('Removed %d genotypes associated with null markers' % (
+		ct2 - _getCount('#genotype_keepers')))
 	return
 
 def _cleanupTempTables():
@@ -640,7 +969,12 @@ def _cleanupTempTables():
 		'#reporter_transgenes',
 		'#scratchpad',
 		'#wildtype_alleles',
-		'#genotype_marker_counts'
+		'#ec',
+		'#ec_ct',
+		'#trad',
+		'#trad_ct',
+		'#mi',
+		'#mi_ct',
 		]
 
 	for table in tables:
@@ -768,29 +1102,34 @@ def _initialize():
 	if INITIALIZED:
 		return
 
+	if DEBUG:
+		db.set_sqlLogFunction(db.sqlLogAll)
+
 	db.useOneConnection(1)
 
+	_identifyExpressesComponentData()
 	_countAllelePairsPerGenotype()
 
 	_buildKeepersTable()
-	_keepSuperSimpleGenotypes()
+	_keepNaturallySimpleGenotypes()
 	_indexKeepersTable()
 
+	_buildScratchPad() 
+
 	_identifyReporterTransgenes()
-	_buildScratchPad()
+	_cleanupConditionalGenotypes()
 	_removeReporterTransgenes()
 
 	_identifyWildTypeAlleles()
-	_cleanupConditionalGenotypes()
-
-	_buildSingleMarkerTable()
-	_keepSimpleGenotypes()
-
-	_removeSimpleGenotypesFromScratchPad()
 	_removeWildTypeAllelesFromScratchPad()
 
-	_refreshSingleMarkerTable()
-	_keepSimpleGenotypes()
+	_collectMarkerSets()
+
+	_handleMultipleMarkers()
+	_handleMutationInvolves()
+	_handleTransgenes()
+	_handleDockingSites()
+	_handleOtherSingles()
 
 	_removeNullsAndGtRosa()
 	_cleanupTempTables()

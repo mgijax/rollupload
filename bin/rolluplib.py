@@ -21,7 +21,7 @@ MAX_ANNOTATIONS = 10000		# maximum number of annotations to cache in
 				# ...memory at once
 
 PROFILING_ON = True		# is profiling turned on currently?
-DEBUG = True			# write debugging output to stderr?
+DEBUG = False			# write debugging output to stderr?
 
 MGI = 1				# logical DB key for MGI
 

@@ -879,7 +879,7 @@ def _handleDockingSites():
 	docking_sites = ','.join(map(str, DOCKING_SITES))
 
 	cmdDS = '''insert into #genotype_keepers
-		select s._Genotype_key, "docking site rule", ec._Marker_key
+		select s._Genotype_key, "docking site rule 6", ec._Marker_key
 		from #scratchpad s,
 			#ec_ct ct,
 			#ec ec
@@ -889,13 +889,30 @@ def _handleDockingSites():
 			and s._Genotype_key = ec._Genotype_key''' % \
 				docking_sites
 
+	# Hprt and Col1a1 can both have phenotypes of their own; we need to
+	# pick those up.  Gt(ROSA)26Sor is not known to have any of its own
+	# phenotypes, so we leave that docking site out of this query.
+
+	cmdDS2 = '''insert into #genotype_keepers
+		select s._Genotype_key, "docking site rule 9", s._Marker_key
+		from #scratchpad s
+		where s._Marker_key in (%d,%d)
+			and not exists (select 1 from #ec_ct ct
+				where s._Genotype_key = ct._Genotype_key)''' \
+			% (HPRT, COL1A1)
+
 	cmdDel = '''delete from #scratchpad
 		where _Marker_key in (%s)''' % docking_sites
 
 	ct1 = _getCount('#genotype_keepers')
 	db.sql(cmdDS, 'auto')
-	_stamp('Added %d rows to #genotype_keepers for docking sites' % (
-		_getCount('#genotype_keepers') - ct1))
+	_stamp('Added %d rows to #genotype_keepers for docking sites rule 6' \
+		% (_getCount('#genotype_keepers') - ct1))
+
+	ct1a = _getCount('#genotype_keepers')
+	db.sql(cmdDS2, 'auto')
+	_stamp('Added %d rows to #genotype_keepers for docking sites rule 9' \
+		% (_getCount('#genotype_keepers') - ct1a))
 
 	ct2 = _getCount('#scratchpad')
 	db.sql(cmdDel, 'auto')

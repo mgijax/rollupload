@@ -103,6 +103,9 @@ preload ${OUTPUTDIR}
 #
 echo 'Running rollupload.py diseaseMarker' >> ${LOG_DIAG}
 
+ANNOTPROPERTY=`grep '^setenv ANNOTPROPERTY' ${ROLLUPLOAD}/diseaseMarker.csh.config | awk '{print $3}'`
+export ANNOTPROPERTY
+
 INFILE_NAME=${DISEASE_INFILE_NAME}
 export INFILE_NAME
 
@@ -114,6 +117,9 @@ checkStatus ${STAT} "${ROLLUPLOAD}/bin/rollupload.py diseaseMarker"
 # create MP/marker input file for annotation load
 #
 echo 'Running rollupload.py mpMarker' >> ${LOG_DIAG}
+
+ANNOTPROPERTY=`grep '^setenv ANNOTPROPERTY' ${ROLLUPLOAD}/mpMarker.csh.config | awk '{print $3}'`
+export ANNOTPROPERTY
 
 INFILE_NAME=${MP_INFILE_NAME}
 export INFILE_NAME

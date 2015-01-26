@@ -10,6 +10,7 @@
 #	to reduce the number of repetitive SQL commands that would be needed.
 
 import gc
+import os
 import db
 import Profiler
 
@@ -48,7 +49,14 @@ REPORTER = 11025589		# term key for Reporter allele attribute
 TRANSGENIC = 847126		# term key for Transgenic allele type
 RECOMBINASE = 11025588		# term key for Recombinase allele attribute
 
+# term key for 'inserted expressed sequence' subtype
+INSERTED_EXPRESSED_SEQUENCE = 11025597
+
+TRANSACTIVATOR = 13289567	# term key for Transactivator subtype
+
 NO_PHENOTYPIC_ANALYSIS = 293594	# term key for 'no phenotypic analysis' term
+
+SOURCE_ANNOT_KEY = None		# term key for _SourceAnnot_key property
 
 GT_ROSA = 37270			# marker key for Gt(ROSA)26Sor marker
 HPRT = 9936			# marker key for Hprt marker
@@ -442,7 +450,8 @@ def _keepNaturallySimpleGenotypes():
 	#   3. no conditional flag
 
 	cmd3 = '''insert into #genotype_keepers
-		select g._Genotype_key, "naturally simple", p._Marker_key
+		select distinct g._Genotype_key, "naturally simple",
+			p._Marker_key
 		from #genotype_pair_counts g,
 			GXD_AllelePair p,
 			GXD_Genotype gg
@@ -511,13 +520,48 @@ def _identifyReporterTransgenes():
 	_stamp('Indexed #reporter_transgenes')
 	return
 
+def _identifyTransactivators():
+	# collect into a temp table (#transactivators) the alleles that:
+	#   1. are of allele type (generation type) "Transgenic"
+	#   2. have an attribute (subtype) of "Transactivator"
+	#   3. do NOT have an "inserted expressed sequence" attribute
+
+	# The "distinct" should be superfluous, but we'll include it just in
+	# case something flaky comes up.
+
+	cmd4a = '''select distinct a._Allele_key
+		into #transactivators
+		from all_allele a, voc_annot t
+		where a._Allele_key = t._Object_key
+			and t._AnnotType_key = %d
+			and t._Term_key = %d
+			and a._Allele_Type_key = %d
+			and not exists (select 1 from voc_annot u
+				where a._Allele_key = u._Object_key
+				and u._AnnotType_key = %d
+				and u._Term_key = %d)''' % (
+		ALLELE_SUBTYPE, TRANSACTIVATOR, TRANSGENIC, ALLELE_SUBTYPE,
+		INSERTED_EXPRESSED_SEQUENCE)
+
+	db.sql(cmd4a, 'auto')
+	_stamp('Built #transactivators table with %d rows' % \
+		_getCount('#transactivators'))
+
+	# build a unique index on the allele key for the transactivators
+
+	cmd5 = '''create unique index #tmp_transactivators
+		on #transactivators (_Allele_key)'''
+	db.sql(cmd5, 'auto')
+	_stamp('Indexed #transactivators')
+	return
+
 def _buildScratchPad():
 	# For genotypes with multiple allele pairs, we need to try to apply 
 	# some rules to nail things down to a single causative marker for each.
 	# To begin, we'll collect a table of genotype/marker/allele data to
 	# use as a scratch pad for further calculations.
 
-	cmd6 = '''select gag._Genotype_key,
+	cmd6 = '''select distinct gag._Genotype_key,
 			gag._Marker_key,
 			gag._Allele_key,
 			g.isConditional
@@ -575,6 +619,21 @@ def _removeReporterTransgenes():
 			from #reporter_transgenes)'''
 	db.sql(cmd8, 'auto')
 	_stamp('Removed %d reporter transgenes from #scratchpad' % (
+		before - _getCount('#scratchpad')) )
+	return 
+
+def _removeTransactivators():
+	# remove from the scratch pad any alleles which are transactivators
+	# (and are transgenic)
+
+	before = _getCount('#scratchpad')
+
+	# Remove alleles which are transactivators. 
+	cmd8a = '''delete from #scratchpad
+		where _Allele_key in (select _Allele_key
+			from #transactivators)'''
+	db.sql(cmd8a, 'auto')
+	_stamp('Removed %d transactivators from #scratchpad' % (
 		before - _getCount('#scratchpad')) )
 	return 
 
@@ -724,7 +783,7 @@ def _handleMultipleMarkers():
 	before = _getCount('#genotype_keepers')
 
 	template = '''insert into #genotype_keepers
-		select s._Genotype_key, "transgene rule A", %s
+		select distinct s._Genotype_key, "transgene rule A", %s
 		from #scratchpad s,
 			#trad_ct tc, 
 			#trad tt, 
@@ -1097,13 +1156,8 @@ def _initializeKeyMaps():
 	# map from property term key to property name
 
 	propertyCmd = '''select distinct t._Term_key, t.term
-		from VOC_Annot va, VOC_Evidence ve, VOC_Evidence_Property p,
-			VOC_Term t
-		where va._AnnotType_key in (%d)
-			and va._Annot_key = ve._Annot_key
-			and ve._AnnotEvidence_key = p._AnnotEvidence_key
-			and p._PropertyTerm_key = t._Term_key''' % \
-				CURRENT_ANNOT_TYPE
+		from VOC_Term t
+		where t._Vocab_key = %s''' % os.environ['ANNOTPROPERTY']
 	PROPERTY_MAP = KeyMap(propertyCmd, '_Term_key', 'term')
 
 	_stamp('Initialized 7 key maps')
@@ -1136,6 +1190,9 @@ def _initialize():
 	_identifyReporterTransgenes()
 	_cleanupConditionalGenotypes()
 	_removeReporterTransgenes()
+
+	_identifyTransactivators()
+	_removeTransactivators()
 
 	_identifyWildTypeAlleles()
 	_removeWildTypeAllelesFromScratchPad()
@@ -1224,7 +1281,7 @@ def _getAnnotations (startMarker, endMarker):
 	# the given 'startMarker' and 'endMarker', inclusive.  
 	# Returns: { marker key : [ annotation rows ] }
 
-	cmd23 = '''select k._Marker_key, a.*
+	cmd23 = '''select distinct k._Marker_key, a.*
 		from #genotype_keepers k, VOC_Annot a
 		where k._Genotype_key = a._Object_key
 			and a._AnnotType_key in (%d)
@@ -1242,7 +1299,7 @@ def _getEvidence (startMarker, endMarker):
 	# inclusive.
 	# Returns: { _Annot_key : [ evidence rows ] }
 
-	cmd24 = '''select k._Marker_key, e.*
+	cmd24 = '''select distinct k._Marker_key, e.*
 		from #genotype_keepers k,
 			VOC_Annot a,
 			VOC_Evidence e
@@ -1255,15 +1312,17 @@ def _getEvidence (startMarker, endMarker):
 				CURRENT_ANNOT_TYPE, NO_PHENOTYPIC_ANALYSIS,
 				startMarker, endMarker)
 
-	return _makeDictionary (db.sql(cmd24, 'auto'), '_Annot_key')
+	results = db.sql(cmd24, 'auto')
 
-def _getEvidenceProperties (startMarker, endMarker):
+	return _makeDictionary (results, '_Annot_key'), results
+
+def _getEvidenceProperties (startMarker, endMarker, rawEvidence):
 	# get all the properties from VOC_Evidence_Property for evidence
 	# records, which are for annotations which can be rolled up to markers
 	# between the given 'startMarker' and 'endMarker', inclusive.
 	# Returns: { _AnnotEvidence_key : [ property rows ] }
 
-	cmd25 = '''select k._Marker_key, p.*
+	cmd25 = '''select distinct k._Marker_key, e._Annot_key, p.*
 		from #genotype_keepers k, VOC_Annot a, VOC_Evidence e,
 			VOC_Evidence_Property p
 		where k._Genotype_key = a._Object_key
@@ -1277,7 +1336,96 @@ def _getEvidenceProperties (startMarker, endMarker):
 			CURRENT_ANNOT_TYPE, NO_PHENOTYPIC_ANALYSIS,
 			startMarker, endMarker)
 
-	return _makeDictionary (db.sql(cmd25, 'auto'), '_AnnotEvidence_key') 
+	properties = db.sql(cmd25, 'auto')
+
+	_stamp('Retrieved %d properties from db' % len(properties))
+
+	# need to go through the evidence records and add an extra property
+	# for each one, to refer back to the _Annot_key of the annotation
+	# from which this one is derived.  Note:  If an evidence record
+	# already has a source annotation property, we don't need to add
+	# another one
+
+	byEvidenceKey = _makeDictionary (properties, '_AnnotEvidence_key') 
+
+	evidenceKeys = byEvidenceKey.keys()
+	evidenceKeys.sort()
+
+	# maps annot evidence key to True, if already has source
+	hasSource = {}	
+
+	for evidenceKey in evidenceKeys:
+		rows = byEvidenceKey[evidenceKey]
+
+		# need to see if this evidence record already has a source
+		# annotation; if so, we can move on to the next
+
+		for row in rows:
+			if row['_PropertyTerm_key'] == SOURCE_ANNOT_KEY:
+				hasSource[evidenceKey] = True
+				break
+
+		if hasSource.has_key(evidenceKey):
+			continue
+
+		# get maximum sequence number for properties tied to this
+		# evidenceKey, then increment for the new property
+
+		seqNum = max(map(lambda x : x['sequenceNum'], rows))
+		if not seqNum:
+			seqNum = 1
+		else:
+			seqNum = seqNum + 1
+
+		# copy the last property row as a starting point, then update
+		# the copy with necessary altered values
+
+		newProperty = rows[-1].copy()
+
+		newProperty['_PropertyTerm_key'] = SOURCE_ANNOT_KEY
+		newProperty['sequenceNum'] = seqNum
+		newProperty['value'] = newProperty['_Annot_key']
+
+		# and add the new source property
+
+		byEvidenceKey[evidenceKey].append(newProperty)
+		hasSource[evidenceKey] = True
+
+	# need to handle evidence rows which had no properties previously
+
+	for row in rawEvidence:
+		evidenceKey = row['_AnnotEvidence_key']
+
+		r = {
+			'_Marker_key' : row['_Marker_key'],
+			'_AnnotEvidence_key' : evidenceKey,
+			'_PropertyTerm_key' : SOURCE_ANNOT_KEY,
+			'stanza' : 1,
+			'sequenceNum' : 1,
+			'value' : row['_Annot_key'],
+			'_CreatedBy_key' : row['_CreatedBy_key'],
+			'_ModifiedBy_key' : row['_ModifiedBy_key'],
+			'creation_date' : row['creation_date'],
+			'modification_date' : row['modification_date'],
+			}
+
+		# Add a source row if the annotation had no evidence at all.
+
+		if not byEvidenceKey.has_key(evidenceKey):
+			byEvidenceKey[evidenceKey] = [ r ]
+
+		# Add a source row if the annotation had evidence, but no
+		# already-stored source row.
+
+		elif not hasSource.has_key(evidenceKey):
+			byEvidenceKey[evidenceKey].append(r)
+
+		# Otherwise, the annotation already has its source, so don't
+		# add another row for it.
+
+	_stamp('Added %d source key properties' % len(byEvidenceKey))
+
+	return byEvidenceKey
 
 def _getNotes (startMarker, endMarker):
 	# get notes from MGI_Note & MGI_NoteChunk for evidence records, which
@@ -1288,7 +1436,7 @@ def _getNotes (startMarker, endMarker):
 
 	# handle basic data for each note
 
-	cmd26 = '''select k._Marker_key, n.*
+	cmd26 = '''select distinct k._Marker_key, n.*
 		from #genotype_keepers k,
 			VOC_Annot a,
 			VOC_Evidence e,
@@ -1324,7 +1472,7 @@ def _getNotes (startMarker, endMarker):
 
 	# now get the actual note chunks and associate them with their notes
 
-	cmd27 = '''select c.*
+	cmd27 = '''select distinct c.*
 		from #genotype_keepers k,
 			VOC_Annot a,
 			VOC_Evidence e,
@@ -1417,14 +1565,19 @@ def _getMarkers (startMarker, endMarker):
 	annotations = _getAnnotations(startMarker, endMarker)
 
 	# marker key -> annotation key -> evidence rows 
-	evidence = _splitByMarker(_getEvidence(startMarker, endMarker))
+	evidenceResults, rawEvidence =_getEvidence(startMarker, endMarker)
+	evidence = _splitByMarker(evidenceResults)
+	_stamp('Returned %d rawEvidence rows' % len(rawEvidence))
 
 	# marker key -> evidence key -> property rows
 	properties = _splitByMarker(_getEvidenceProperties(startMarker,
-		endMarker))
+		endMarker, rawEvidence))
+
+	_stamp('Received properties for %d markers' % len(properties))
 
 	# marker key -> evidence key -> note rows -> note chunk rows
 	notes = _splitNotesByMarker(_getNotes(startMarker, endMarker))
+	_stamp('Received notes for %d markers' % len(notes))
 
 	# Returns: { _AnnotEvidence_key : { note key : { record from database
 	#	+ chunks : [ rows from note chunk table ] } } }
@@ -1455,10 +1608,14 @@ def _getMarkers (startMarker, endMarker):
 def setAnnotationType (annotType):
 	# set up this module to use either OMIM_GENOTYPE or MP_GENOTYPE
 
-	global CURRENT_ANNOT_TYPE
+	global CURRENT_ANNOT_TYPE, SOURCE_ANNOT_KEY
 
 	if annotType in (OMIM_GENOTYPE, MP_GENOTYPE):
 		CURRENT_ANNOT_TYPE = annotType
+		if annotType == OMIM_GENOTYPE:
+			SOURCE_ANNOT_KEY = 13611348
+		else:
+			SOURCE_ANNOT_KEY = 13576001 
 	else:
 		raise Error, 'Unknown MGI Type: %d' % annotType
 	return

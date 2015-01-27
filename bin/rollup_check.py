@@ -315,10 +315,12 @@ def compare (derivedAnnotations, sourceAnnotations):
 
 		if not sourceKey:
 			report('No source annotation for %d' % derivedKey)
+			mismatches = mismatches + 1
 			continue
 
 		if not sourceAnnotations.has_key(sourceKey):
 			report('Missing source annotation for %d' % derivedKey)
+			mismatches = mismatches + 1
 
 		sourceAnnot = sourceAnnotations[sourceKey]
 
@@ -362,7 +364,7 @@ def main():
 			mismatches = mismatches + found
 
 	if mismatches:
-		bailout('Failed with %d mismatches' % len(mismatches))
+		bailout('Failed with %d mismatches' % mismatches)
 
 	print 'All records matched'
 	return

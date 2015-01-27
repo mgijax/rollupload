@@ -1342,31 +1342,21 @@ def _getEvidenceProperties (startMarker, endMarker, rawEvidence):
 
 	# need to go through the evidence records and add an extra property
 	# for each one, to refer back to the _Annot_key of the annotation
-	# from which this one is derived.  Note:  If an evidence record
-	# already has a source annotation property, we don't need to add
-	# another one
+	# from which this one is derived.  Note:  These evidence records are
+	# all for source annotations (not derived ones), so none of them
+	# would already have a _SourceAnnot_key property.
 
 	byEvidenceKey = _makeDictionary (properties, '_AnnotEvidence_key') 
 
 	evidenceKeys = byEvidenceKey.keys()
 	evidenceKeys.sort()
 
-	# maps annot evidence key to True, if already has source
-	hasSource = {}	
+	added = 0
 
 	for evidenceKey in evidenceKeys:
 		rows = byEvidenceKey[evidenceKey]
 
-		# need to see if this evidence record already has a source
-		# annotation; if so, we can move on to the next
-
-		for row in rows:
-			if row['_PropertyTerm_key'] == SOURCE_ANNOT_KEY:
-				hasSource[evidenceKey] = True
-				break
-
-		if hasSource.has_key(evidenceKey):
-			continue
+		markers = []
 
 		# get maximum sequence number for properties tied to this
 		# evidenceKey, then increment for the new property
@@ -1377,53 +1367,62 @@ def _getEvidenceProperties (startMarker, endMarker, rawEvidence):
 		else:
 			seqNum = seqNum + 1
 
-		# copy the last property row as a starting point, then update
-		# the copy with necessary altered values
+		seqRows = []
+		for row in rows:
+			markerKey = row['_Marker_key']
 
-		newProperty = rows[-1].copy()
+			# if we don't already have a source row involving this
+			# marker, then copy the current property row as a
+			# starting point, then update the copy with necessary
+			# altered values
 
-		newProperty['_PropertyTerm_key'] = SOURCE_ANNOT_KEY
-		newProperty['sequenceNum'] = seqNum
-		newProperty['value'] = newProperty['_Annot_key']
+			if markerKey in markers:
+				continue
+
+			markers.append(markerKey)
+			seqNum = seqNum + 1
+
+			newProperty = row.copy()
+
+			newProperty['_PropertyTerm_key'] = SOURCE_ANNOT_KEY
+			newProperty['sequenceNum'] = seqNum
+			newProperty['value'] = newProperty['_Annot_key']
+
+			seqRows.append(newProperty)
 
 		# and add the new source property
 
-		byEvidenceKey[evidenceKey].append(newProperty)
-		hasSource[evidenceKey] = True
+		byEvidenceKey[evidenceKey] = rows + seqRows
+		added = added + len(seqRows)
+
+	_stamp('Added %d source key properties for records with existing properties' % added)
 
 	# need to handle evidence rows which had no properties previously
 
+	ct = 0
 	for row in rawEvidence:
 		evidenceKey = row['_AnnotEvidence_key']
-
-		r = {
-			'_Marker_key' : row['_Marker_key'],
-			'_AnnotEvidence_key' : evidenceKey,
-			'_PropertyTerm_key' : SOURCE_ANNOT_KEY,
-			'stanza' : 1,
-			'sequenceNum' : 1,
-			'value' : row['_Annot_key'],
-			'_CreatedBy_key' : row['_CreatedBy_key'],
-			'_ModifiedBy_key' : row['_ModifiedBy_key'],
-			'creation_date' : row['creation_date'],
-			'modification_date' : row['modification_date'],
-			}
 
 		# Add a source row if the annotation had no evidence at all.
 
 		if not byEvidenceKey.has_key(evidenceKey):
+			r = {
+				'_Marker_key' : row['_Marker_key'],
+				'_AnnotEvidence_key' : evidenceKey,
+				'_PropertyTerm_key' : SOURCE_ANNOT_KEY,
+				'stanza' : 1,
+				'sequenceNum' : 1,
+				'value' : row['_Annot_key'],
+				'_CreatedBy_key' : row['_CreatedBy_key'],
+				'_ModifiedBy_key' : row['_ModifiedBy_key'],
+				'creation_date' : row['creation_date'],
+				'modification_date' : row['modification_date'],
+				}
 			byEvidenceKey[evidenceKey] = [ r ]
+			ct = ct + 1
 
-		# Add a source row if the annotation had evidence, but no
-		# already-stored source row.
-
-		elif not hasSource.has_key(evidenceKey):
-			byEvidenceKey[evidenceKey].append(r)
-
-		# Otherwise, the annotation already has its source, so don't
-		# add another row for it.
-
-	_stamp('Added %d source key properties' % len(byEvidenceKey))
+	_stamp('Added %d source key properties for records with no existing properties' % ct)
+	_stamp('Added %d source key properties in all' % len(byEvidenceKey))
 
 	return byEvidenceKey
 

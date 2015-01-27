@@ -197,6 +197,9 @@ class Annotation:
 def loadAnnotations(annotKeys):
 	keyString = ','.join(map(str,annotKeys))
 
+	if not keyString:
+		return {}
+
 	# basic annotation data
 	cmd1 = '''select va._Annot_key, vat.name as annotation_type,
 			t.term, q.term as qualifier, va.creation_date,

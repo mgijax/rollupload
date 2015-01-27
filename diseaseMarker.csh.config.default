@@ -9,7 +9,7 @@
 setenv ANNOTDATADIR	${DATALOADSOUTPUT}/rollupload/input
 setenv ANNOTMODE	new
 setenv ANNOTTYPENAME	"OMIM/Marker (Derived)"
-setenv ANNOTPROPERTY    0
+setenv ANNOTPROPERTY    100
 setenv ANNOTINPUTFILE	${ANNOTDATADIR}/diseaseMarker.annot
 setenv ANNOTLOG		${ANNOTINPUTFILE}.log
 setenv DELETEREFERENCE	"J:0"

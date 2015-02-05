@@ -1353,10 +1353,13 @@ def _getEvidenceProperties (startMarker, endMarker, rawEvidence):
 
 	added = 0
 
+	# tracks (evidence key, marker key) pairs - indicates when we have a
+	# source annotation property associated with that marker through the
+	# specified evidence record.
+	evidenceMarkerPairs = {}
+
 	for evidenceKey in evidenceKeys:
 		rows = byEvidenceKey[evidenceKey]
-
-		markers = []
 
 		# get maximum sequence number for properties tied to this
 		# evidenceKey, then increment for the new property
@@ -1376,10 +1379,11 @@ def _getEvidenceProperties (startMarker, endMarker, rawEvidence):
 			# starting point, then update the copy with necessary
 			# altered values
 
-			if markerKey in markers:
+			pair = (evidenceKey, markerKey)
+			if evidenceMarkerPairs.has_key(pair):
 				continue
 
-			markers.append(markerKey)
+			evidenceMarkerPairs[pair] = True
 			seqNum = seqNum + 1
 
 			newProperty = row.copy()
@@ -1402,12 +1406,15 @@ def _getEvidenceProperties (startMarker, endMarker, rawEvidence):
 	ct = 0
 	for row in rawEvidence:
 		evidenceKey = row['_AnnotEvidence_key']
+		markerKey = row['_Marker_key']
+
+		pair = (evidenceKey, markerKey)
 
 		# Add a source row if the annotation had no evidence at all.
 
-		if not byEvidenceKey.has_key(evidenceKey):
+		if not evidenceMarkerPairs.has_key(pair):
 			r = {
-				'_Marker_key' : row['_Marker_key'],
+				'_Marker_key' : markerKey,
 				'_AnnotEvidence_key' : evidenceKey,
 				'_PropertyTerm_key' : SOURCE_ANNOT_KEY,
 				'stanza' : 1,
@@ -1418,7 +1425,13 @@ def _getEvidenceProperties (startMarker, endMarker, rawEvidence):
 				'creation_date' : row['creation_date'],
 				'modification_date' : row['modification_date'],
 				}
-			byEvidenceKey[evidenceKey] = [ r ]
+
+			if not byEvidenceKey.has_key(evidenceKey):
+				byEvidenceKey[evidenceKey] = [ r ]
+			else:
+				byEvidenceKey[evidenceKey].append(r)
+
+			evidenceMarkerPairs[pair] = True
 			ct = ct + 1
 
 	_stamp('Added %d source key properties for records with no existing properties' % ct)

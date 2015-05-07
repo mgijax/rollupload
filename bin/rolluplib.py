@@ -68,6 +68,8 @@ DOCKING_SITES = [ GT_ROSA, HPRT, COL1A1 ]	# loci that can be generally
 MUTATION_INVOLVES = 1003	# category key for 'mutation involves'
 EXPRESSES_COMPONENT = 1004	# category key for 'expresses component'
 
+EXPRESSES_MOUSE_GENE = 12965808	# term key for 'expresses_mouse_gene'
+
 INITIALIZED = False		# have we finished initializing this module?
 
 PROFILER = Profiler.Profiler()	# used for timing of code, to aid optimization
@@ -374,7 +376,9 @@ def _getCount(table):
 def _identifyExpressesComponentData():
 	# builds a #has_expresses_component temp table with (genotype key,
 	# allele key) pairs for those genotypes and alleles with 'expresses
-	# component' relationships
+	# component' relationships.  For cases where this temp table is used,
+	# it doesn't matter if the relationship is to a mouse gene or to an
+	# orthologous gene.
 
 	HEC = '#has_expresses_component'
 
@@ -450,7 +454,8 @@ def _keepNaturallySimpleGenotypes():
 	#   3. no conditional flag
 
 	cmd3 = '''insert into #genotype_keepers
-		select distinct g._Genotype_key, "naturally simple",
+		select distinct g._Genotype_key,
+			"rule #1 : one marker genotype",
 			p._Marker_key
 		from #genotype_pair_counts g,
 			GXD_AllelePair p,
@@ -701,16 +706,29 @@ def _collectMarkerSets():
 
 	# commands to build tables 2 & 3 (distinct genotype/marker pairs)
 
-	templateA = '''select distinct s._Genotype_key,
+	miCmd = '''select distinct s._Genotype_key,
 			mr._Object_key_2 as _Marker_key
-		into %s
+		into #mi
 		from #scratchpad s,
 			MGI_Relationship mr
 		where s._Allele_key = mr._Object_key_1
-			and mr._Category_key = %d'''
+			and mr._Category_key = %d''' % MUTATION_INVOLVES
 
-	miCmd = templateA % ('#mi', MUTATION_INVOLVES)
-	ecCmd = templateA % ('#ec', EXPRESSES_COMPONENT)
+	# We also need to track the organism of each expressed marker, as
+	# there are special cases down the road which require mouse-only.
+
+	ecCmd = '''select distinct s._Genotype_key,
+			mr._Object_key_2 as _Marker_key,
+			m._Organism_key,
+			mr._RelationshipTerm_key
+		into #ec
+		from #scratchpad s,
+			MGI_Relationship mr,
+			MRK_Marker m
+		where s._Allele_key = mr._Object_key_1
+			and mr._Category_key = %d
+			and mr._Object_key_2 = m._Marker_key''' % \
+				EXPRESSES_COMPONENT
 
 	# commands to index tables 1-3
 
@@ -765,6 +783,9 @@ def _collectMarkerSets():
 		db.sql(c5, 'auto')
 		_stamp('Built table of %s genotype/marker counts with %d rows'\
 			% (name, _getCount(tbl2)) )
+	
+	db.sql('create index #ecOrg on #ec (_Organism_key)', 'auto')
+	db.sql('create index #ecTerm on #ec (_RelationshipTerm_key)', 'auto')
 	return
 
 def _handleMultipleMarkers():
@@ -783,7 +804,8 @@ def _handleMultipleMarkers():
 	before = _getCount('#genotype_keepers')
 
 	template = '''insert into #genotype_keepers
-		select distinct s._Genotype_key, "transgene rule A", %s
+		select distinct s._Genotype_key,
+			"rule #2 : transgene, 1 EC, 0 MI", %s
 		from #scratchpad s,
 			#trad_ct tc, 
 			#trad tt, 
@@ -809,12 +831,13 @@ def _handleMultipleMarkers():
 			and tn._Marker_key = nt._Marker_key
 			and nt._Marker_Type_key != %d
 
-			-- transgene expresses non-transgene
+			-- transgene expresses mouse non-transgene
 			and exists (select 1
 				from MGI_Relationship r1, ALL_Allele a
 				where r1._Category_key = %d
 				and mt._Marker_key = a._Marker_key
 				and a._Allele_key = r1._Object_key_1
+				and r1._RelationshipTerm_key = %d
 				and r1._Object_key_2 = nt._Marker_key)
 
 			-- transgene does not express any other marker
@@ -826,7 +849,8 @@ def _handleMultipleMarkers():
 				and r2._Object_key_2 != nt._Marker_key)''' % (
 			'%s',
 			TRANSGENE, TRANSGENE,
-			EXPRESSES_COMPONENT, EXPRESSES_COMPONENT)
+			EXPRESSES_COMPONENT, EXPRESSES_MOUSE_GENE,
+			EXPRESSES_COMPONENT)
 
 	transgeneCmd = template % 'mt._Marker_key'
 	otherCmd = template % 'nt._Marker_key'
@@ -859,7 +883,8 @@ def _handleMutationInvolves():
 	# relationships for the genotype is > 0.
 
 	cmdMI = '''insert into #genotype_keepers
-		select s._Genotype_key, "mutation involves rule", s._Marker_key
+		select s._Genotype_key, "rule #3 : mutation involves",
+			s._Marker_key
 		from #scratchpad s, #mi_ct mc
 		where s._Genotype_key = mc._Genotype_key'''
 
@@ -886,7 +911,7 @@ def _handleTransgenes():
 
 	# single marker is a transgene
 	cmdTg = '''insert into #genotype_keepers
-		select s._Genotype_key, "transgene rule B", s._Marker_key
+		select s._Genotype_key, "rule #4 : transgene", s._Marker_key
 		from #scratchpad s, MRK_Marker m
 		where s._Marker_key = m._Marker_key
 			and m._Marker_Type_key = %d''' % TRANSGENE
@@ -894,7 +919,8 @@ def _handleTransgenes():
 	# single marker is a transgene with one expressed component, also
 	# include the expressed component marker
 	cmdEC = '''insert into #genotype_keepers
-		select s._Genotype_key, "transgene rule B", ec._Marker_key
+		select s._Genotype_key, "rule #5 : transgene, 1 EC",
+			ec._Marker_key
 		from #scratchpad s,
 			MRK_Marker m, 
 			#ec_ct ct,
@@ -902,8 +928,10 @@ def _handleTransgenes():
 		where s._Marker_key = m._Marker_key
 			and m._Marker_Type_key = %d
 			and s._Genotype_key = ec._Genotype_key
+			and ec._RelationshipTerm_key = %d
 			and s._Genotype_key = ct._Genotype_key
-			and ct.marker_count = 1''' % TRANSGENE
+			and ct.marker_count = 1''' % (TRANSGENE, 
+				EXPRESSES_MOUSE_GENE)
 
 	# delete genotypes with transgene markers from #scratchpad
 	cmdDel = '''delete from #scratchpad
@@ -938,25 +966,29 @@ def _handleDockingSites():
 	docking_sites = ','.join(map(str, DOCKING_SITES))
 
 	cmdDS = '''insert into #genotype_keepers
-		select s._Genotype_key, "docking site rule 6", ec._Marker_key
+		select s._Genotype_key, "rule #6 : docking site, 1 EC",
+			ec._Marker_key
 		from #scratchpad s,
 			#ec_ct ct,
 			#ec ec
 		where s._Marker_key in (%s)
 			and s._Genotype_key = ct._Genotype_key
 			and ct.marker_count = 1
+			and ec._RelationshipTerm_key = %d
 			and s._Genotype_key = ec._Genotype_key''' % \
-				docking_sites
+				(docking_sites, EXPRESSES_MOUSE_GENE)
 
 	# Hprt and Col1a1 can both have phenotypes of their own; we need to
 	# pick those up.  Gt(ROSA)26Sor is not known to have any of its own
 	# phenotypes, so we leave that docking site out of this query.
 
 	cmdDS2 = '''insert into #genotype_keepers
-		select s._Genotype_key, "docking site rule 9", s._Marker_key
+		select s._Genotype_key, "rule #9 : docking site, 0 EC",
+			s._Marker_key
 		from #scratchpad s
 		where s._Marker_key in (%d,%d)
-			and not exists (select 1 from #ec_ct ct
+			and not exists (select 1
+				from #has_expresses_component ct
 				where s._Genotype_key = ct._Genotype_key)''' \
 			% (HPRT, COL1A1)
 
@@ -990,23 +1022,26 @@ def _handleOtherSingles():
 
 	# singles with no expressed components
 	cmd1 = '''insert into #genotype_keepers
-		select s._Genotype_key, "other singles, no EC", s._Marker_key
+		select s._Genotype_key, "rule #7 : singles, no EC",
+			s._Marker_key
 		from #scratchpad s
-		where not exists (select 1 from #ec_ct ct
+		where not exists (select 1 from #has_expresses_component ct
 			where s._Genotype_key = ct._Genotype_key)'''
 
 	# singles where the marker knows how to express itself
 	cmd2 = '''insert into #genotype_keepers
 		select s._Genotype_key,
-			"other singles, expresses self",
+			"rule #8 : self-expressing single",
 			s._Marker_key
 		from #scratchpad s,
 			#ec_ct ct,
 			#ec ec
 		where s._Genotype_key = ct._Genotype_key
 			and ct.marker_count = 1
+			and ec._RelationshipTerm_key = %d
 			and s._Genotype_key = ec._Genotype_key
-			and s._Marker_key = ec._Marker_key'''
+			and s._Marker_key = ec._Marker_key''' % \
+				EXPRESSES_MOUSE_GENE
 
 	ct1 = _getCount('#genotype_keepers')
 	db.sql(cmd1, 'auto')

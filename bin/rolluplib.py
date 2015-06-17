@@ -368,10 +368,10 @@ def _stamp (s):
 	return
 
 def _getCount(table):
-	results = db.sql('select count(1) from %s' % table, 'auto')
+	results = db.sql('select count(1) as get_count from %s' % table, 'auto')
 	if not results:
 		return 0
-	return results[0]['']
+	return results[0]['get_count']
 
 def _identifyExpressesComponentData():
 	# builds a has_expresses_component temp table with (genotype key,
@@ -1483,7 +1483,7 @@ def _getNotes (startMarker, endMarker):
 
 	# handle basic data for each note
 
-	cmd26 = '''select distinct k._Marker_key, n.*
+	cmd26 = '''select distinct k._Marker_key, e._AnnotEvidence_key, n.*
 		from genotype_keepers k,
 			VOC_Annot a,
 			VOC_Evidence e,

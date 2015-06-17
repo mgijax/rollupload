@@ -1483,7 +1483,7 @@ def _getNotes (startMarker, endMarker):
 
 	# handle basic data for each note
 
-	cmd26 = '''select distinct k._Marker_key, e._AnnotEvidence_key, n.*
+	cmd26 = '''select distinct k._Marker_key, n.*
 		from genotype_keepers k,
 			VOC_Annot a,
 			VOC_Evidence e,
@@ -1496,10 +1496,11 @@ def _getNotes (startMarker, endMarker):
 			and a._Annot_key = e._Annot_key
 			and e._AnnotEvidence_key = n._Object_key
 			and n._NoteType_key in (%d, %d)
-		order by e._AnnotEvidence_key''' % (
+		order by n._Object_key''' % (
 			CURRENT_ANNOT_TYPE, NO_PHENOTYPIC_ANALYSIS,
 			startMarker, endMarker,
 			GENERAL_NOTE, BACKGROUND_SENSITIVITY_NOTE)
+
 
 	results = db.sql(cmd26, 'auto')
 

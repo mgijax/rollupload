@@ -1407,6 +1407,8 @@ def _getEvidenceProperties (startMarker, endMarker, rawEvidence):
 
 		seqRows = []
 		for row in rows:
+			print row
+			print type(row)
 			markerKey = row['_Marker_key']
 
 			# if we don't already have a source row involving this

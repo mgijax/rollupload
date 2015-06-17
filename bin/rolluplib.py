@@ -12,6 +12,7 @@
 import gc
 import os
 import db
+import copy
 import Profiler
 
 ###--- globals ---###
@@ -1407,8 +1408,6 @@ def _getEvidenceProperties (startMarker, endMarker, rawEvidence):
 
 		seqRows = []
 		for row in rows:
-			print row
-			print type(row)
 			markerKey = row['_Marker_key']
 
 			# if we don't already have a source row involving this
@@ -1423,7 +1422,7 @@ def _getEvidenceProperties (startMarker, endMarker, rawEvidence):
 			evidenceMarkerPairs[pair] = True
 			seqNum = seqNum + 1
 
-			newProperty = row.copy()
+			newProperty = copy.copy(row)
 
 			newProperty['_PropertyTerm_key'] = SOURCE_ANNOT_KEY
 			newProperty['sequenceNum'] = seqNum

@@ -1,3 +1,9 @@
+TAG: rollupload-6-0-1-1
+DATE: 11/30/2015
+STAFF: dbm
+CHANGES: TR11904 & TR12199
+1) rollupload.config.default: Don't override MAIL_LOG_PROC
+
 TAG: rollupload-6-0-0-1
 DATE: 07/24/2015
 STAFF: lec

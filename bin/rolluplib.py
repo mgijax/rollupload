@@ -12,6 +12,8 @@
 import gc
 import os
 import db
+db.setAutoTranslate(False)
+db.setAutoTranslateBE(False)
 import copy
 import Profiler
 
@@ -456,7 +458,7 @@ def _keepNaturallySimpleGenotypes():
 
 	cmd3 = '''insert into genotype_keepers
 		select distinct g._Genotype_key,
-			\'rule #1 : one marker genotype\',
+			'rule #1 : one marker genotype',
 			p._Marker_key
 		from genotype_pair_counts g,
 			GXD_AllelePair p,

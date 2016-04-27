@@ -6,6 +6,8 @@
 
 import sys
 import db
+db.setAutoTranslate(False)
+db.setAutoTranslateBE(False)
 import time
 import gc
 

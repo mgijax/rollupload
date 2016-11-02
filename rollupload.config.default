@@ -46,10 +46,11 @@ OUTPUTDIR=${FILEDIR}/output
 # directory where input files are created by rollupload.py
 INPUTDIR=${FILEDIR}/input
 DISEASE_INFILE_NAME=${INPUTDIR}/diseaseMarker.annot
+DISEASEDO_INFILE_NAME=${INPUTDIR}/diseaseMarkerDO.annot
 MP_INFILE_NAME=${INPUTDIR}/mpMarker.annot
 
 export FILEDIR ARCHIVEDIR LOGDIR RPTDIR OUTPUTDIR
-export INPUTDIR MP_INFILE_NAME DISEASE_INFILE_NAME
+export INPUTDIR DISEASE_INFILE_NAME DISEASEDO_INFILE_NAME MP_INFILE_NAME
 
 #  Complete path name of the log files
 LOG_FILE=${LOGDIR}/rollupload.log

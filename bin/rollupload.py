@@ -57,6 +57,8 @@ def initialize():
 	annotType = sys.argv[1]
 	if annotType == 'diseaseMarker':
 		rolluplib.setAnnotationType(rolluplib.OMIM_GENOTYPE)
+	elif annotType == 'diseaseMarkerDO':
+		rolluplib.setAnnotationType(rolluplib.DO_GENOTYPE)
 	elif annotType == 'mpMarker':
 		rolluplib.setAnnotationType(rolluplib.MP_GENOTYPE)
 	else:

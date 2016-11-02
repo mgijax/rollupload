@@ -42,10 +42,12 @@ BACKGROUND_SENSITIVITY_NOTE = 1015	# note type key for background
 
 CURRENT_ANNOT_TYPE = None	# either OMIM_GENOTYPE or MP_GENOTYPE
 OMIM_GENOTYPE = 1005		# OMIM/Genotype annotation type
+DO_GENOTYPE = 1020		# DO/Genotype annotation type
 MP_GENOTYPE = 1002		# Mammalian Phenotype/Genotype annotation type
 
 ALLELE_SUBTYPE = 1014		# Allele/Subtype annotation type
 OMIM_MARKER = 1016		# new OMIM/Marker annotation type
+DO_MARKER = 1023		# new DO/Marker annotation type
 MP_MARKER = 1015		# new Mammalian Phenotype/Marker annotation type
 
 REPORTER = 11025589		# term key for Reporter allele attribute
@@ -1657,13 +1659,13 @@ def _getMarkers (startMarker, endMarker):
 ###--- public functions ---###
 
 def setAnnotationType (annotType):
-	# set up this module to use either OMIM_GENOTYPE or MP_GENOTYPE
+	# set up this module to use correct annotType
 
 	global CURRENT_ANNOT_TYPE, SOURCE_ANNOT_KEY
 
-	if annotType in (OMIM_GENOTYPE, MP_GENOTYPE):
+	if annotType in (OMIM_GENOTYPE, DO_GENOTYPE, MP_GENOTYPE):
 		CURRENT_ANNOT_TYPE = annotType
-		if annotType == OMIM_GENOTYPE:
+		if annotType in (OMIM_GENOTYPE, DO_GENOTYPE):
 			SOURCE_ANNOT_KEY = 13611348
 		else:
 			SOURCE_ANNOT_KEY = 13576001 

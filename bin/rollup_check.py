@@ -3,6 +3,13 @@
 # Name: rollup_check.py
 # Purpose: to verify the rolled-up annotations in a particular database,
 #	ensuring that their 'source annotation' properties are correct
+#
+# History
+#
+# 11/03/2016	lec
+# 	TR12427/Disease Ontology (DO)
+# 	MP check is broken : (MP_MARKER, MP_GENOTYPE)
+#
 
 import sys
 import db
@@ -341,7 +348,9 @@ def main():
 
 	processCommandLine()
 
-	pairs = [ (OMIM_MARKER, OMIM_GENOTYPE), (DO_MARKER, DO_GENOTYPE), (MP_MARKER, MP_GENOTYPE) ]
+	# MP check is broken : (MP_MARKER, MP_GENOTYPE)
+
+	pairs = [ (OMIM_MARKER, OMIM_GENOTYPE), (DO_MARKER, DO_GENOTYPE) ]
 
 	mismatches = 0
 

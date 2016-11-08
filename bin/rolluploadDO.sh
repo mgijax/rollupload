@@ -121,7 +121,7 @@ checkStatus ${STAT} "${ROLLUPLOAD}/bin/rollupload.py diseaseMarkerDO"
 COMMON_CONFIG_CSH=${ROLLUPLOAD}/diseaseMarkerDO.csh.config
 echo "Running disease rollupload annotation load" >> ${LOG_DIAG}
 cd ${OUTPUTDIR}
-${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} diseaseMarkerDO >> ${LOG_DIAG}
+${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} diseaseMarker >> ${LOG_DIAG}
 STAT=$?
 checkStatus ${STAT} "${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} diseaseMarkerDO"
 

@@ -1,7 +1,7 @@
 #!/bin/csh -f
 
 #
-# defaults for annotation load of "OMIM/Marker (Derived)" annotation type
+# defaults for annotation load of "DO/Marker (Derived)" annotation type
 #
 
 #source ${ANNOTLOAD}/Configuration

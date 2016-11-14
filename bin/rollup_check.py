@@ -22,7 +22,7 @@ import gc
 USAGE = '''Usage: %s <server> <database>
 ''' % sys.argv[0]
 
-DEBUG = True
+DEBUG = False
 
 # annotation types
 

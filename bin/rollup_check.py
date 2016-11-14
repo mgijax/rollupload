@@ -8,7 +8,8 @@
 #
 # 11/03/2016	lec
 # 	TR12427/Disease Ontology (DO)
-# 	MP check is broken : (MP_MARKER, MP_GENOTYPE)
+#	TR12454/fix MP rollup_check.py bug 
+#		PROPERTY query should only be looking for term = '_Source_key'
 #
 
 import sys
@@ -21,7 +22,7 @@ import gc
 USAGE = '''Usage: %s <server> <database>
 ''' % sys.argv[0]
 
-DEBUG = False
+DEBUG = True
 
 # annotation types
 
@@ -59,7 +60,8 @@ def processCommandLine():
 	if len(sys.argv) != 3:
 		bailout('Incorrect command-line; need two parameters.')
 
-	db.set_sqlLogin('mgd_public', 'mgdpub', sys.argv[1], sys.argv[2])
+	db.set_sqlServer(sys.argv[1])
+	db.set_sqlDatabase(sys.argv[2])
 	db.useOneConnection(1)
 
 	try:
@@ -249,6 +251,7 @@ def loadAnnotations(annotKeys):
 		where ve._Annot_key in (%s)
 			and ve._AnnotEvidence_key = vep._AnnotEvidence_key
 			and vep._PropertyTerm_key = p._Term_key
+			and p.term = '_SourceAnnot_key'
 			and vep._CreatedBy_key = cu._User_key
 			and vep._ModifiedBy_key = mu._User_key
 		order by vep._AnnotEvidence_key, vep.sequenceNum''' % keyString
@@ -348,9 +351,7 @@ def main():
 
 	processCommandLine()
 
-	# MP check is broken : (MP_MARKER, MP_GENOTYPE)
-
-	pairs = [ (OMIM_MARKER, OMIM_GENOTYPE), (DO_MARKER, DO_GENOTYPE) ]
+	pairs = [ (OMIM_MARKER, OMIM_GENOTYPE), (DO_MARKER, DO_GENOTYPE), (MP_MARKER, MP_GENOTYPE) ]
 
 	mismatches = 0
 

@@ -12,10 +12,11 @@
 import gc
 import os
 import db
-db.setAutoTranslate(False)
-db.setAutoTranslateBE(False)
 import copy
 import Profiler
+
+db.setAutoTranslate(False)
+db.setAutoTranslateBE(False)
 
 ###--- globals ---###
 

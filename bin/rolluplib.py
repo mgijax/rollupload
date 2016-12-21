@@ -15,9 +15,6 @@ import db
 import copy
 import Profiler
 
-db.setAutoTranslate(False)
-db.setAutoTranslateBE(False)
-
 ###--- globals ---###
 
 Error = 'rolluplib.Error'

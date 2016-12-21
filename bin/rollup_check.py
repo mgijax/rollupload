@@ -17,9 +17,6 @@ import db
 import time
 import gc
 
-db.setAutoTranslate(False)
-db.setAutoTranslateBE(False)
-
 USAGE = '''Usage: %s <server> <database>
 ''' % sys.argv[0]
 

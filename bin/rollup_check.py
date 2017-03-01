@@ -24,10 +24,8 @@ DEBUG = False
 
 # annotation types
 
-OMIM_MARKER = 1016
 DO_MARKER = 1023
 MP_MARKER = 1015
-OMIM_GENOTYPE = 1005
 DO_GENOTYPE = 1020
 MP_GENOTYPE = 1002
 
@@ -349,7 +347,7 @@ def main():
 
 	processCommandLine()
 
-	pairs = [ (OMIM_MARKER, OMIM_GENOTYPE), (DO_MARKER, DO_GENOTYPE), (MP_MARKER, MP_GENOTYPE) ]
+	pairs = [ ((DO_MARKER, DO_GENOTYPE), (MP_MARKER, MP_GENOTYPE) ]
 
 	mismatches = 0
 

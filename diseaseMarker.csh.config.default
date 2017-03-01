@@ -1,14 +1,14 @@
 #!/bin/csh -f
 
 #
-# defaults for annotation load of "OMIM/Marker (Derived)" annotation type
+# defaults for annotation load of "DO/Marker (Derived)" annotation type
 #
 
 #source ${ANNOTLOAD}/Configuration
 
 setenv ANNOTDATADIR	${DATALOADSOUTPUT}/rollupload/input
 setenv ANNOTMODE	new
-setenv ANNOTTYPENAME	"OMIM/Marker (Derived)"
+setenv ANNOTTYPENAME	"DO/Marker (Derived)"
 setenv ANNOTPROPERTY    100
 setenv ANNOTINPUTFILE	${ANNOTDATADIR}/diseaseMarker.annot
 setenv ANNOTLOG		${ANNOTINPUTFILE}.log

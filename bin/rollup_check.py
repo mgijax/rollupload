@@ -347,7 +347,7 @@ def main():
 
 	processCommandLine()
 
-	pairs = [ ((DO_MARKER, DO_GENOTYPE), (MP_MARKER, MP_GENOTYPE) ]
+	pairs = [ (DO_MARKER, DO_GENOTYPE), (MP_MARKER, MP_GENOTYPE) ]
 
 	mismatches = 0
 

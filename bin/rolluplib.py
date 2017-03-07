@@ -1661,7 +1661,7 @@ def setAnnotationType (annotType):
 
 	if annotType in (DO_GENOTYPE, MP_GENOTYPE):
 		CURRENT_ANNOT_TYPE = annotType
-		if annotType in (DO_GENOTYPE):
+		if annotType == DO_GENOTYPE:
 			SOURCE_ANNOT_KEY = 13611348
 		else:
 			SOURCE_ANNOT_KEY = 13576001 

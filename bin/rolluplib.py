@@ -730,8 +730,9 @@ def _collectMarkerSets():
 			MRK_Marker m
 		where s._Allele_key = mr._Object_key_1
 			and mr._Category_key = %d
-			and mr._Object_key_2 = m._Marker_key''' % \
-				EXPRESSES_COMPONENT
+			and mr._Object_key_2 = m._Marker_key
+			and m._Marker_Status_key = 1
+			''' % EXPRESSES_COMPONENT
 
 	# commands to index tables 1-3
 
@@ -828,11 +829,13 @@ def _handleMultipleMarkers():
 			and s._Genotype_key = tt._Genotype_key
 			and tt._Marker_key = mt._Marker_key
 			and mt._Marker_Type_key = %d
+			and mt._Marker_Status_key = 1
 
 			-- one non-transgene
 			and s._Genotype_key = tn._Genotype_key
 			and tn._Marker_key = nt._Marker_key
 			and nt._Marker_Type_key != %d
+			and nt._Marker_Status_key = 1
 
 			-- transgene expresses mouse non-transgene
 			and exists (select 1
@@ -917,7 +920,9 @@ def _handleTransgenes():
 		select s._Genotype_key, \'rule #4 : transgene\', s._Marker_key
 		from scratchpad s, MRK_Marker m
 		where s._Marker_key = m._Marker_key
-			and m._Marker_Type_key = %d''' % TRANSGENE
+			and m._Marker_Type_key = %d
+			and m._Marker_Status_key = 1
+			''' % TRANSGENE
 
 	# single marker is a transgene with one expressed component, also
 	# include the expressed component marker
@@ -930,18 +935,21 @@ def _handleTransgenes():
 			ec ec
 		where s._Marker_key = m._Marker_key
 			and m._Marker_Type_key = %d
+			and m._Marker_Status_key = 1
 			and s._Genotype_key = ec._Genotype_key
 			and ec._RelationshipTerm_key = %d
 			and s._Genotype_key = ct._Genotype_key
-			and ct.marker_count = 1''' % (TRANSGENE, 
-				EXPRESSES_MOUSE_GENE)
+			and ct.marker_count = 1''' % (TRANSGENE, EXPRESSES_MOUSE_GENE)
 
 	# delete genotypes with transgene markers from scratchpad
 	cmdDel = '''delete from scratchpad
 		where _Genotype_key in (select s._Genotype_key
 			from scratchpad s, MRK_Marker m
 			where s._Marker_key = m._Marker_key
-			and m._Marker_Type_key = %d)''' % TRANSGENE
+			and m._Marker_Type_key = %d
+			and m._Marker_Status_key = 1
+			)
+			''' % TRANSGENE
 
 	ct1 = _getCount('genotype_keepers')
 	db.sql(cmdTg, 'auto')

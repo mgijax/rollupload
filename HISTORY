@@ -7,6 +7,13 @@ replace diseaseMarker/OMIM version with DO versions
 mv diseaseMarkerDO to diseaseMarker
 remove diseaseMarkerDO versions
 
+TAG: rollupload-6-0-8-2
+DATE: 03/14/2017
+STAFF: lec
+CHANGES: 
+TR12427/Disease Ontology (DO)
+need to add _Marker_Status_key = 1
+
 TAG: rollupload-6-0-8-1
 DATE: 11/02/2016, 02/14/2017
 STAFF: lec

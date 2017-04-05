@@ -441,7 +441,7 @@ def _buildKeepersTable():
 
 	cmd2 = '''create table genotype_keepers (
 		_Genotype_key int not null,
-		genotype_type varchar(40) null,
+		genotype_type text null,
 		_Marker_key int null)'''
 	db.sql(cmd2, 'auto')
 	_stamp('Created genotype_keepers table')

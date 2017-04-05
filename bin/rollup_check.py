@@ -17,8 +17,7 @@ import db
 import time
 import gc
 
-USAGE = '''Usage: %s <server> <database>
-''' % sys.argv[0]
+USAGE = '''Usage: %s <server> <database>''' % sys.argv[0]
 
 DEBUG = False
 

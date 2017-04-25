@@ -427,8 +427,7 @@ def _countAllelePairsPerGenotype():
 
 	# index by pair_count, as we will be using that for processing
 
-	cmd1 = '''create index tmp_by_count
-		on genotype_pair_counts (pair_count, _Genotype_key)'''
+	cmd1 = '''create index tmp_by_count on genotype_pair_counts (pair_count, _Genotype_key)'''
 	db.sql(cmd1, 'auto')
 	_stamp('Indexed genotype_pair_counts')
 	return
@@ -481,11 +480,8 @@ def _keepNaturallySimpleGenotypes():
 def _indexKeepersTable():
 	# add relevant indexes to the genotype_keepers table
 
-	cmdA = '''create index gk_genotype
-			on genotype_keepers (_Genotype_key)'''
-	cmdB = '''create index gk_marker
-			on genotype_keepers (_Marker_key, _Genotype_key)'''
-
+	cmdA = '''create index gk_genotype on genotype_keepers (_Genotype_key)'''
+	cmdB = '''create index gk_marker on genotype_keepers (_Marker_key, _Genotype_key)'''
 	db.sql(cmdA, 'auto')
 	db.sql(cmdB, 'auto')
 	_stamp('Indexed genotype_keepers')
@@ -520,8 +516,7 @@ def _identifyReporterTransgenes():
 
 	# build a unique index on the allele key for the reporter transgenes
 
-	cmd5 = '''create unique index tmp_reportertg
-		on reporter_transgenes (_Allele_key)'''
+	cmd5 = '''create unique index tmp_reportertg on reporter_transgenes (_Allele_key)'''
 	db.sql(cmd5, 'auto')
 	_stamp('Indexed reporter_transgenes')
 	return
@@ -555,8 +550,7 @@ def _identifyTransactivators():
 
 	# build a unique index on the allele key for the transactivators
 
-	cmd5 = '''create unique index tmp_transactivators
-		on transactivators (_Allele_key)'''
+	cmd5 = '''create unique index tmp_transactivators on transactivators (_Allele_key)'''
 	db.sql(cmd5, 'auto')
 	_stamp('Indexed transactivators')
 	return
@@ -659,8 +653,7 @@ def _identifyWildTypeAlleles():
 
 	# build an index on allele key for performance
 
-	cmd10 = '''create unique index wt_alleles
-		on wildtype_alleles (_Allele_key)'''
+	cmd10 = '''create unique index wt_alleles on wildtype_alleles (_Allele_key)'''
 	db.sql(cmd10, 'auto')
 	_stamp('Indexed alleles in wildtype_alleles')
 	return
@@ -1079,16 +1072,19 @@ def _removeNullsAndGtRosa():
 def _cleanupTempTables():
 	# drop any temp tables that we're done with
 
-	tables = [ 'genotype_pair_counts',
+	tables = [ 
+		'has_expresses_component',
+		'genotype_pair_counts',
 		'reporter_transgenes',
+		'transactivators',
 		'scratchpad',
 		'wildtype_alleles',
-		'ec',
-		'ec_ct',
 		'trad',
 		'trad_ct',
 		'mi',
 		'mi_ct',
+		'ec',
+		'ec_ct',
 		]
 
 	for table in tables:

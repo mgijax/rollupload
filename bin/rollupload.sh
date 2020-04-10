@@ -109,7 +109,7 @@ export ANNOTPROPERTY
 INFILE_NAME=${DISEASE_INFILE_NAME}
 export INFILE_NAME
 
-${ROLLUPLOAD}/bin/rollupload.py diseaseMarker >> ${LOG_DIAG}
+${PYTHON} ${ROLLUPLOAD}/bin/rollupload.py diseaseMarker >> ${LOG_DIAG}
 STAT=$?
 checkStatus ${STAT} "${ROLLUPLOAD}/bin/rollupload.py diseaseMarker"
 
@@ -124,7 +124,7 @@ export ANNOTPROPERTY
 INFILE_NAME=${MP_INFILE_NAME}
 export INFILE_NAME
 
-${ROLLUPLOAD}/bin/rollupload.py mpMarker >> ${LOG_DIAG}
+${PYTHON} ${ROLLUPLOAD}/bin/rollupload.py mpMarker >> ${LOG_DIAG}
 STAT=$?
 checkStatus ${STAT} "${ROLLUPLOAD}/bin/rollupload.py mpMarker"
 

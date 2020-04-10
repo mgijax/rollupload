@@ -1,4 +1,3 @@
-#!/usr/local/bin/python
 
 # Name: rollupload.py
 #
@@ -30,62 +29,62 @@ annotFile = None
 ###--- functions ---###
 
 def initialize():
-	# Purpose: do any necessary initialization for this load
-	# Returns: 0 if initialized okay, 1 if errors occured
-	# Assumes: nothing
-	# Effects: opens output file
-	# Throws: nothing
+        # Purpose: do any necessary initialization for this load
+        # Returns: 0 if initialized okay, 1 if errors occured
+        # Assumes: nothing
+        # Effects: opens output file
+        # Throws: nothing
 
-	global annotFileName, annotFile
+        global annotFileName, annotFile
 
-	try:
-		annotFileName = os.environ['INFILE_NAME']
-	except:
-		print 'INFILE_NAME not defined in environment'
-		return 1
+        try:
+                annotFileName = os.environ['INFILE_NAME']
+        except:
+                print('INFILE_NAME not defined in environment')
+                return 1
 
-	try:
-		annotFile = open(annotFileName, 'w')
-	except:
-		print 'Cannot open output file: %s' % annotFileName
-		return 1
+        try:
+                annotFile = open(annotFileName, 'w')
+        except:
+                print('Cannot open output file: %s' % annotFileName)
+                return 1
 
-	if len(sys.argv) < 2:
-		print 'Need to specify annotation type on command-line'
-		return 1
+        if len(sys.argv) < 2:
+                print('Need to specify annotation type on command-line')
+                return 1
 
-	annotType = sys.argv[1]
-	if annotType == 'diseaseMarker':
-		rolluplib.setAnnotationType(rolluplib.DO_GENOTYPE)
-	elif annotType == 'mpMarker':
-		rolluplib.setAnnotationType(rolluplib.MP_GENOTYPE)
-	else:
-		print 'Unknown annotation type: %s' % annotType
-		return 1
+        annotType = sys.argv[1]
+        if annotType == 'diseaseMarker':
+                rolluplib.setAnnotationType(rolluplib.DO_GENOTYPE)
+        elif annotType == 'mpMarker':
+                rolluplib.setAnnotationType(rolluplib.MP_GENOTYPE)
+        else:
+                print('Unknown annotation type: %s' % annotType)
+                return 1
 
-	return 0
+        return 0
 
 def finalize():
-	# Purpose: do any necessary finalization for this load
-	# Returns: 0 if finalized okay, 1 if errors occurred
-	# Assumes: nothing
-	# Effects: closes output file
-	# Throws: nothing
+        # Purpose: do any necessary finalization for this load
+        # Returns: 0 if finalized okay, 1 if errors occurred
+        # Assumes: nothing
+        # Effects: closes output file
+        # Throws: nothing
 
-	global annotFile
+        global annotFile
 
-	try:
-		annotFile.close()
-	except:
-		print 'Failed to close output file properly: %s' % \
-			annotFileName
-		return 1
-	return 0
+        try:
+                annotFile.close()
+        except:
+                print('Failed to close output file properly: %s' % \
+                        annotFileName)
+                return 1
+        return 0
 
 ###--- main program ---###
 
 if initialize():
-	sys.exit(1)
+        sys.exit(1)
 
 rolluplib.addTiming('Finished initialization')
 
@@ -105,15 +104,15 @@ annotLine = '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n'
 
 marker = rolluplib.getNextMarker()
 while marker:
-	for annot in marker.getAnnotations():
-		annotFile.write(annotLine % tuple(annot))
+        for annot in marker.getAnnotations():
+                annotFile.write(annotLine % tuple(annot))
 
-	marker = rolluplib.getNextMarker()
+        marker = rolluplib.getNextMarker()
 
 if finalize():
-	sys.exit(1)
+        sys.exit(1)
 
-print 'Outcome:  Generated %s successfully' % annotFileName
+print('Outcome:  Generated %s successfully' % annotFileName)
 
 rolluplib.addTiming('Finished writing output file')
 rolluplib.dumpTimings()

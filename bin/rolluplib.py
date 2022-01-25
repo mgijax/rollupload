@@ -156,8 +156,7 @@ class Marker:
                 # evidence key -> list of property rows
                 self.evidenceProperties = {}
 
-                # evidence key -> { note key : { note record } +
-                #	{ chunks : [ note chunk rows ] } }
+                # evidence key -> { note key : { note record } }
                 self.notes = {}
 
                 # output data to be computed by finalize() method, in columns
@@ -166,28 +165,17 @@ class Marker:
                 return
 
         def _concatenateNotes (self, evidenceKey):
-                # concatenate the various note chunks together from noteDict
+                # concatenate the various notes together from noteDict
                 # for the given 'evidenceKey'
 
                 notes = ''
                 if evidenceKey in self.notes:
-                        for (noteKey, noteRow) in \
-                            list(self.notes[evidenceKey].items()):
+                        for (noteKey, noteRow) in list(self.notes[evidenceKey].items()):
+                                if notes:
+                                        notes = notes.strip() + ' '
 
-                                # if this row has note chunks (it should), 
-                                # add them to 'notes'
+                                notes = notes + noteRow['note']
 
-                                if noteRow.has_key('chunks'):
-
-                                        # make sure we have a space between
-                                        # this note and the previous one (and
-                                        # that we eliminate extra whitespace)
-
-                                        if notes:
-                                                notes = notes.strip() + ' '
-
-                                        for row in noteRow['chunks']:
-                                                notes = notes + row['note']
                 return notes.replace('\n', ' ').replace('\t', ' ').strip()
 
         def _buildPropertiesValue (self, evidenceKey):
@@ -1298,8 +1286,8 @@ def _makeDictionary (rows, keyField):
 
         out = {}
         for row in rows:
-                print(type(keyField))
-                print(type(row))
+                #print(type(keyField))
+                #print(type(row))
                 if not row.has_key(keyField):
                         raise Error('Missing key (%s) in row: %s' % (
                                 keyField, str(row)))
@@ -1475,12 +1463,10 @@ def _getEvidenceProperties (startMarker, endMarker, rawEvidence):
         return byEvidenceKey
 
 def _getNotes (startMarker, endMarker):
-        # get notes from MGI_Note & MGI_NoteChunk for evidence records, which
+        # get notes from MGI_Note for evidence records, which
         # are for annotations which can be rolled up to markers between the
         # given 'startMarker' and 'endMarker', inclusive.
-        # Returns: { _AnnotEvidence_key : { note key : { record from database
-        #	+ chunks : [ rows from note chunk table ] } } }
-
+        # Returns: { _AnnotEvidence_key : { note key : { record from database } } }
         # handle basic data for each note
 
         cmd26 = '''select distinct k._Marker_key, n.*
@@ -1518,39 +1504,7 @@ def _getNotes (startMarker, endMarker):
 
                 noteToEvidence[noteKey] = evidenceKey
 
-        # now get the actual note chunks and associate them with their notes
-
-        cmd27 = '''select distinct c.*
-                from genotype_keepers k,
-                        VOC_Annot a,
-                        VOC_Evidence e,
-                        MGI_Note n,
-                        MGI_NoteChunk c
-                where k._Genotype_key = a._Object_key
-                        and a._AnnotType_key in (%d)
-                        and a._Term_key != %d
-                        and k._Marker_key >= %d
-                        and k._Marker_key <= %d
-                        and a._Annot_key = e._Annot_key
-                        and e._AnnotEvidence_key = n._Object_key
-                        and n._NoteType_key in (%d, %d)
-                        and n._Note_key = c._Note_key
-                order by c._Note_key, c.sequenceNum''' % (
-                        CURRENT_ANNOT_TYPE, NO_PHENOTYPIC_ANALYSIS,
-                        startMarker, endMarker,
-                        GENERAL_NOTE, BACKGROUND_SENSITIVITY_NOTE)
-
-        results = db.sql(cmd27, 'auto')
-
-        for row in results:
-                noteKey = row['_Note_key']
-                evidenceKey = noteToEvidence[noteKey]
-
-                note = notes[evidenceKey][noteKey]
-                if note.has_key('chunks'):
-                        note['chunks'].append(row)
-                else:
-                        note['chunks'] = [ row ]
+        #print(notes)
         return notes
 
 def _splitByMarker (results):
@@ -1623,12 +1577,11 @@ def _getMarkers (startMarker, endMarker):
 
         _stamp('Received properties for %d markers' % len(properties))
 
-        # marker key -> evidence key -> note rows -> note chunk rows
+        # marker key -> evidence key -> note rows
         notes = _splitNotesByMarker(_getNotes(startMarker, endMarker))
         _stamp('Received notes for %d markers' % len(notes))
 
-        # Returns: { _AnnotEvidence_key : { note key : { record from database
-        #	+ chunks : [ rows from note chunk table ] } } }
+        # Returns: { _AnnotEvidence_key : { note key : { record from database } } }
 
         markerKeys = list(annotations.keys())
         markerKeys.sort()

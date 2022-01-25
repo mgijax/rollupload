@@ -251,18 +251,15 @@ def loadAnnotations(annotKeys):
                 order by vep._AnnotEvidence_key, vep.sequenceNum''' % keyString
 
         # note rows
-        cmd4 = '''select ve._Annot_key, t.noteType, t.private, c.note,
+        cmd4 = '''select ve._Annot_key, t.noteType, t.private, n.note,
                         c.sequenceNum, ve._AnnotEvidence_key
-                from voc_evidence ve, mgi_note n, mgi_notetype t,
-                        mgi_notechunk c
+                from voc_evidence ve, mgi_note n, mgi_notetype t
                 where ve._Annot_key in (%s)
                         and ve._AnnotEvidence_key = n._Object_key
                         and t._NoteType_key = n._NoteType_key
                         and t._NoteType_key in (1008, 1015)
                         and t._MGIType_key = 25
-                        and n._Note_key = c._Note_key
-                order by ve._Annot_key, ve._AnnotEvidence_key,
-                        t.noteType, c.sequenceNum''' % keyString
+                order by ve._Annot_key, ve._AnnotEvidence_key, t.noteType''' % keyString
 
         annotations = {}
 

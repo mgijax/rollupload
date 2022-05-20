@@ -20,7 +20,7 @@ db.setTrace()
 
 Error = 'rolluplib.Error'
 
-DEBUG = 1
+DEBUG = 0
 
 MAX_ANNOTATIONS = 1000		# maximum number of annotations to cache in
 
@@ -55,9 +55,13 @@ QUALIFIER_MAP = None		# KeyMap for qualifier key -> qualifier term
 USER_MAP = None			# KeyMap for user key -> user
 PROPERTY_MAP = None		# KeyMap for property key -> property name
 
+# no testing
+testSQL = ""
+
 # rule #1
 #testSQL = '''
-#and exists (select 1 from ACC_Accession testg where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
+#and exists (select 1 from ACC_Accession testg 
+#where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
 #and testg.accid in (
 #'MGI:4946295',
 #'MGI:2173405',
@@ -75,7 +79,8 @@ PROPERTY_MAP = None		# KeyMap for property key -> property name
 
 # rule #2/crm160
 #testSQL = '''
-#and exists (select 1 from ACC_Accession testg where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
+#and exists (select 1 from ACC_Accession testg 
+#where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
 #and testg.accid in (
 #'MGI:4948663',
 #'MGI:5439284',
@@ -107,31 +112,32 @@ PROPERTY_MAP = None		# KeyMap for property key -> property name
 #'''
 
 # rule #3/crm192
-testSQL = '''
-and exists (select 1 from ACC_Accession testg where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
-and testg.accid in (
-'MGI:5297696',
-'MGI:3721552',
-'MGI:5430308',
-'MGI:4822407',
-'MGI:2388127',
-'MGI:5610007',
-'MGI:5634906',
-'MGI:3717464',
-'MGI:5521546',
-'MGI:4415690',
-'MGI:5288490',
-'MGI:6693445',
-'MGI:5487451',
-'MGI:6710974',
-'MGI:3036838',
-'MGI:3052475',
-'MGI:3805456',
-'MGI:2663960',
-'MGI:5527455'
-)
-)
-'''
+#testSQL = '''
+#and exists (select 1 from ACC_Accession testg 
+#where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
+#and testg.accid in (
+#'MGI:5297696',
+#'MGI:3721552',
+#'MGI:5430308',
+#'MGI:4822407',
+#'MGI:2388127',
+#'MGI:5610007',
+#'MGI:5634906',
+#'MGI:3717464',
+#'MGI:5521546',
+#'MGI:4415690',
+#'MGI:5288490',
+#'MGI:6693445',
+#'MGI:5487451',
+#'MGI:6710974',
+#'MGI:3036838',
+#'MGI:3052475',
+#'MGI:3805456',
+#'MGI:2663960',
+#'MGI:5527455'
+#)
+#)
+#'''
 
 ###--- classes ---###
 
@@ -1390,14 +1396,14 @@ def _getMarkerMetaData():
                 group by k._Marker_key
                 ''' % (CURRENT_ANNOT_TYPE, NO_PHENOTYPIC_ANALYSIS)
 
+        results = db.sql(cmd, 'auto')
+        for row in results:
+                ANNOTATION_COUNTS[row['_Marker_key']] = row['annotation_count']
+
         if DEBUG:
-                results = db.sql(cmd, 'auto')
                 for r in results:
                         _stamp(r)
                 _stamp('\n')
-
-        for row in results:
-                ANNOTATION_COUNTS[row['_Marker_key']] = row['annotation_count']
 
         MARKER_KEYS = list(ANNOTATION_COUNTS.keys())
         MARKER_KEYS.sort()

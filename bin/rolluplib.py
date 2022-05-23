@@ -20,7 +20,7 @@ db.setTrace()
 
 Error = 'rolluplib.Error'
 
-DEBUG = 0
+DEBUG = 1
 
 MAX_ANNOTATIONS = 1000		# maximum number of annotations to cache in
 
@@ -56,7 +56,7 @@ USER_MAP = None			# KeyMap for user key -> user
 PROPERTY_MAP = None		# KeyMap for property key -> property name
 
 # no testing
-testSQL = ""
+#testSQL = ""
 
 # rule #1
 #testSQL = '''
@@ -112,32 +112,32 @@ testSQL = ""
 #'''
 
 # rule #3/crm192
-#testSQL = '''
-#and exists (select 1 from ACC_Accession testg 
-#where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
-#and testg.accid in (
-#'MGI:5297696',
-#'MGI:3721552',
-#'MGI:5430308',
-#'MGI:4822407',
-#'MGI:2388127',
-#'MGI:5610007',
-#'MGI:5634906',
-#'MGI:3717464',
-#'MGI:5521546',
-#'MGI:4415690',
-#'MGI:5288490',
-#'MGI:6693445',
-#'MGI:5487451',
-#'MGI:6710974',
-#'MGI:3036838',
-#'MGI:3052475',
-#'MGI:3805456',
-#'MGI:2663960',
-#'MGI:5527455'
-#)
-#)
-#'''
+testSQL = '''
+and exists (select 1 from ACC_Accession testg 
+where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
+and testg.accid in (
+'MGI:5297696',
+'MGI:3721552',
+'MGI:5430308',
+'MGI:4822407',
+'MGI:2388127',
+'MGI:5610007',
+'MGI:5634906',
+'MGI:3717464',
+'MGI:5521546',
+'MGI:4415690',
+'MGI:5288490',
+'MGI:6693445',
+'MGI:5487451',
+'MGI:6710974',
+'MGI:3036838',
+'MGI:3052475',
+'MGI:3805456',
+'MGI:2663960',
+'MGI:5527455'
+)
+)
+'''
 
 ###--- classes ---###
 
@@ -400,22 +400,20 @@ def _stampResults(s, order = ''):
 def _addKeeper():
         if DEBUG:
                 _stamp('after add to genotype_keepers')
-                _stampResults('genotype_keepers', 'order by maccid')
+                _stampResults('genotype_keepers', 'order by gaccid, maccid')
 
 def _deleteKeeper():
         if DEBUG:
                 _stamp('after delete from genotype_keepers')
-                _stampResults('genotype_keepers', 'order by maccid')
-
-def _addScratchpad():
-        if DEBUG:
-                _stamp('after add to scratchpad')
-                _stampResults('scratchpad', 'order by maccid')
+                _stampResults('genotype_keepers', 'order by gaccid, maccid')
 
 def _deleteScratchpad():
         if DEBUG:
                 _stamp('after delete from scratchpad')
-                _stampResults('scratchpad', 'order by maccid')
+                _stampResults('scratchpad', 'order by gaccid, maccid')
+
+        # re-create genotype_pair_counts from scratchpad
+        _countAllelePairsPerGenotype('scratchpad')
 
 def _getCount(table):
         results = db.sql('select count(1) as get_count from %s' % table, 'auto')
@@ -461,9 +459,9 @@ def _identifyMutationInvolves():
         _stamp('1a:_identifyMutationInvolves/has_mutation_involves')
 
         cmd = '''
-                select distinct aa.accid, gag._Genotype_key, gag._Allele_key, mr._Object_key_2 as _Marker_key
+                select distinct aa.accid, gag._Genotype_key, gag._Allele_key, mr._Object_key_2 as _Marker_key, m.symbol
                 into temp table has_mutation_involves
-                from VOC_Annot a, GXD_AlleleGenotype gag, MGI_Relationship mr, ACC_Accession aa
+                from VOC_Annot a, GXD_AlleleGenotype gag, MGI_Relationship mr, ACC_Accession aa, MRK_Marker m
                 where a._AnnotType_key = %d
                         and a._Term_key != %d
                         and a._Object_key = gag._Genotype_key
@@ -473,6 +471,7 @@ def _identifyMutationInvolves():
                         and aa._MGIType_key = 12
                         and aa._logicaldb_key = 1
                         and aa.prefixpart = 'MGI:'
+                        and mr._Object_key_2 = m._Marker_key
                         %s
                 ''' % (CURRENT_ANNOT_TYPE, NO_PHENOTYPIC_ANALYSIS, testSQL)
 
@@ -485,26 +484,36 @@ def _identifyMutationInvolves():
 
         return
 
-def _countAllelePairsPerGenotype():
+def _countAllelePairsPerGenotype(table):
         # collect into a temp table (genotype_pair_counts) the genotypes that
         # have annotations attached, along with the count of allele pairs for
         # each genotype
 
         _stamp('2:_countAllelePairsPerGenotype')
 
-        cmd = '''
-                select gag._Genotype_key, count(1) as pair_count
-                into temp table genotype_pair_counts
-                from GXD_AllelePair gag
-                where exists (select 1 from VOC_Annot v
-                        where v._AnnotType_key in (%d)
-                        and v._Term_key != %d
-                        and v._Object_key = gag._Genotype_key
-                        )
+        db.sql('drop table if exists genotype_pair_counts', None);
+
+        if (table == 'GXD_AllelePair'):
+                cmd = '''
+                        select gag._Genotype_key, count(1) as pair_count
+                        into temp table genotype_pair_counts
+                        from GXD_AllelePair gag
+                        where exists (select 1 from VOC_Annot v
+                                where v._AnnotType_key in (%d)
+                                and v._Term_key != %d
+                                and v._Object_key = gag._Genotype_key
+                                )
                         %s
-                group by gag._Genotype_key
-                ''' % (CURRENT_ANNOT_TYPE, NO_PHENOTYPIC_ANALYSIS, testSQL)
-        
+                        group by gag._Genotype_key
+                        ''' % (CURRENT_ANNOT_TYPE, NO_PHENOTYPIC_ANALYSIS, testSQL)
+        else:
+                cmd = '''
+                        select gag._Genotype_key, count(1) as pair_count
+                        into temp table genotype_pair_counts
+                        from scratchpad gag
+                        group by gag._Genotype_key
+                        '''
+
         db.sql(cmd, None)
         db.sql('create index tmp_by_count on genotype_pair_counts (pair_count, _Genotype_key)', None)
         _stamp('2:genotype_pair_counts : %d\n' % _getCount('genotype_pair_counts'))
@@ -568,7 +577,8 @@ def _keepNaturallySimpleGenotypes():
                 where g.pair_count = 1
                         and g._Genotype_key = p._Genotype_key
                         and p._Genotype_key = gg._Genotype_key
-                        and gg.isConditional = 0        -- 4.4:isConditional = false
+                        -- 4.4:isConditional = false
+                        and gg.isConditional = 0        
                         and p._Marker_key = m._Marker_key
 
                         and g._Genotype_key = a1._Object_key
@@ -585,10 +595,10 @@ def _keepNaturallySimpleGenotypes():
                         and not exists (select 1 from has_mutation_involves mi where g._Genotype_key = mi._Genotype_key)
 
                         -- 4.3:allele attribute "inserted expressed sequence" = false
-                        and not exists (select 1 from VOC_Annot b
-                                where b._AnnotType_key = 1014   -- allele subtype annotation
-                                and p._Allele_key = b._Object_key
-                                and b._Term_key = 11025597     -- inserted expressed sequence
+                        and not exists (select 1 from VOC_Annot b -- allele subtype annotation
+                                where b._AnnotType_key = 1014   
+                                and p._Allele_key = b._Object_key -- inserted expressed sequence
+                                and b._Term_key = 11025597     
                                 )
 
                         -- 4.5:wildtype = false')
@@ -629,16 +639,16 @@ def _identifyReporterTransgenes():
                 select distinct a._Allele_key
                 into temp table reporter_transgenes
                 from ALL_Allele a
-                where a._Allele_Type_key = 847126              -- transgenic
-                        and exists (select 1 from VOC_Annot v
-                                where a._Allele_key = v._Object_key
-                                and v._AnnotType_key = 1014     -- allele subtype annotation
-                                and v._Term_key = 11025589      -- reporter
+                where a._Allele_Type_key = 847126              
+                        and exists (select 1 from VOC_Annot v   -- transgenic
+                                where a._Allele_key = v._Object_key -- allele subtype annotation
+                                and v._AnnotType_key = 1014         -- reporter
+                                and v._Term_key = 11025589      
                                 )
                         and not exists (select 1 from VOC_Annot v
-                                where a._Allele_key = v._Object_key
-                                and v._AnnotType_key = 1014     -- allele subtype annotation
-                                and v._Term_key != 11025589     -- not reporter
+                                where a._Allele_key = v._Object_key -- allele subtype annotation
+                                and v._AnnotType_key = 1014         -- not reporter
+                                and v._Term_key != 11025589     
                                 )
                 '''
 
@@ -669,8 +679,8 @@ def _identifyTransactivators():
                 where a._Allele_Type_key = 847126         -- transgenic
                         and exists (select 1 from VOC_Annot v
                                 where a._Allele_key = v._Object_key
-                                and v._AnnotType_key = 1014             -- allele subtype annotation
-                                and v._Term_key = 13289567              -- transactivator
+                                and v._AnnotType_key = 1014    -- allele subtype annotation
+                                and v._Term_key = 13289567     -- transactivator
                         )
                         and not exists (select 1 from VOC_Annot v
                                 where a._Allele_key = v._Object_key
@@ -710,7 +720,8 @@ def _buildScratchPad():
                         MRK_Marker m,
                         ACC_Accession a1,
                         ACC_Accession a2
-                where not exists (select 1 from genotype_keepers k where c._Genotype_key = k._Genotype_key)
+                where not exists (select 1 from genotype_keepers k 
+                        where c._Genotype_key = k._Genotype_key)
                         and c._Genotype_key = gag._Genotype_key
                         and c._Genotype_key = g._Genotype_key
                         and gag._Marker_key = m._Marker_key
@@ -892,7 +903,8 @@ def _collectMarkerSets():
                 select distinct s._Genotype_key, mr._Object_key_2 as _Marker_key
                 into temp table mi
                 from scratchpad s, MGI_Relationship mr
-                where s._Allele_key = mr._Object_key_1 and mr._Category_key = 1003      -- MI relationship
+                where s._Allele_key = mr._Object_key_1 
+                and mr._Category_key = 1003      -- MI relationship
                 '''
 
         # We also need to track the organism of each expressed marker, as
@@ -1078,12 +1090,12 @@ def _handleMutationInvolves():
         # rule #3 Non-Transgene clause
         #
         cmd = '''
-                select distinct s._Genotype_key, s._Marker_key
+                select distinct s.gaccid, s.maccid, s._Genotype_key, s._Marker_key, s.symbol
                 into temp table mi1
                 from genotype_pair_counts c, scratchpad s
                 where c.pair_count = 1
                         and c._Genotype_key = s._Genotype_key
-                        and exists (select 1 from mi_ct where s._Genotype_key = mi_ct._Genotype_key)
+                        and exists (select 1 from has_mutation_involves mi where s._Genotype_key = mi._Genotype_key)
                         and (
                              exists (select 1 from VOC_Annot v
                                 where s._Marker_key = v._Object_key
@@ -1105,20 +1117,35 @@ def _handleMutationInvolves():
         _stamp('16:2:the genotype has at least 1 mutation involves marker in (I)')
         _stamp('16:3:marker (M) feature type = heritable phenotypic marker, enhancer, silencer, imprinting control region, locus control region, promoter')
         _stamp('16:3:OR marker type = complex/cluster/region) OR cytogenetic marker')
-        results = db.sql('select * from mi1', 'auto')
-        _stamp('select * from mi1: %d\n' % len(results))
-        #_stamp(results)
+
+        if DEBUG:
+                _stamp('\nmi1')
+                results = db.sql('select * from mi1', 'auto')
+                for r in results:
+                        _stamp(r)
 
         #
         # rule #3 Transgene clause
         #
         cmd = '''
-                select distinct s._Genotype_key, s._Marker_key
+                select distinct s.gaccid, s.maccid, s._Genotype_key, s._Marker_key, s.symbol
                 into temp table mi2
-                from genotype_pair_counts c, scratchpad s
+                from genotype_pair_counts c, scratchpad s, has_mutation_involves mi
                 where c.pair_count = 1
                         and c._Genotype_key = s._Genotype_key
-                        and exists (select mi_ct._Genotype_key from mi_ct where s._Genotype_key = mi_ct._Genotype_key and mi_ct.marker_count = 1)
+                        and s._Genotype_key = mi._Genotype_key
+                        and exists (select 1 from mi_ct where s._Genotype_key = mi_ct._Genotype_key and mi_ct.marker_count = 1)
+                        and exists (select 1 from MRK_Marker m
+                                where s._Marker_key = m._Marker_key
+                                and m._Marker_Type_key in (12)
+                        )
+                union
+                select distinct s.gaccid, s.maccid, s._Genotype_key, mi._Marker_key, mi.symbol
+                from genotype_pair_counts c, scratchpad s, has_mutation_involves mi
+                where c.pair_count = 1
+                        and c._Genotype_key = s._Genotype_key
+                        and s._Genotype_key = mi._Genotype_key
+                        and exists (select 1 from mi_ct where s._Genotype_key = mi_ct._Genotype_key and mi_ct.marker_count = 1)
                         and exists (select 1 from MRK_Marker m
                                 where s._Marker_key = m._Marker_key
                                 and m._Marker_Type_key in (12)
@@ -1128,40 +1155,60 @@ def _handleMutationInvolves():
         _stamp('16:1:the genotype has exactly 1 marker in (M)')
         _stamp('16:2:the genotype has exactly 1 mutation involves marker in (I)')
         _stamp('16:3:marker type = Transgene (12)')
+        _stamp('16:4:rollup to both marker in (M) and marker in (I)')
         db.sql(cmd, None)
         db.sql('create index mi2_1 on mi2 (_Genotype_key)', None)
         db.sql('create index mi2_2 on mi2 (_Marker_key)', None)
-        results = db.sql('select * from mi2', 'auto')
-        _stamp('select * from mi2: %d\n' % len(results))
-        #_stamp(results)
-        
+
+        if DEBUG:
+                _stamp('\nmi2')
+                results = db.sql('select * from mi2', 'auto')
+                for r in results:
+                        _stamp(r)
+
         #
         # rule #3 Docking Site clause
         #
         docking_sites = ','.join(map(str, DOCKING_SITES))
         cmd = '''
-                select s._Genotype_key, mi._Marker_key
+                select s.gaccid, s.maccid, s._Genotype_key, s._Marker_key, s.symbol
                 into temp table mi3
                 from genotype_pair_counts c, scratchpad s, has_mutation_involves mi
                 where c.pair_count = 1
                         and c._Genotype_key = s._Genotype_key
-                        and exists (select mi_ct._Genotype_key from mi_ct where s._Genotype_key = mi_ct._Genotype_key and mi_ct.marker_count = 1)
+                        and s._Genotype_key = mi._Genotype_key
+                        and exists (select 1 from mi_ct where s._Genotype_key = mi_ct._Genotype_key and mi_ct.marker_count = 1)
                         and exists (select 1 from MRK_Marker m
                                 where s._Marker_key = m._Marker_key
                                 and m._Marker_key in (%s)
                         )
+                union
+                select s.gaccid, s.maccid, s._Genotype_key, mi._Marker_key, mi.symbol
+                from genotype_pair_counts c, scratchpad s, has_mutation_involves mi
+                where c.pair_count = 1
+                        and c._Genotype_key = s._Genotype_key
                         and s._Genotype_key = mi._Genotype_key
-                ''' % (docking_sites)
+                        and exists (select 1 from mi_ct where s._Genotype_key = mi_ct._Genotype_key and mi_ct.marker_count = 1)
+                        and exists (select 1 from MRK_Marker m
+                                where s._Marker_key = m._Marker_key
+                                and m._Marker_key in (%s)
+                        )
+                ''' % (docking_sites, docking_sites)
 
         _stamp('16:add rows to mi3 rule#3/Docking Site clause')
         _stamp('16:1:the genotype has exactly 1 marker')
         _stamp('16:2:the marker is Docking Site (Col1a1, Gt(ROSA)26Sor, Hprt)')
-        _stamp('16:3:the genotype has exactly 1 mutation involves marker in (I)')
+        _stamp('16:3:rollup to both marker in (M) and marker in (I)')
+        _stamp('16:4:the genotype has exactly 1 mutation involves marker in (I)')
         db.sql(cmd, None)
         db.sql('create index mi3_1 on mi3 (_Genotype_key)', None)
         db.sql('create index mi3_2 on mi3 (_Marker_key)', None)
-        results = db.sql('select * from mi3', 'auto')
-        _stamp('select * from mi3: %d\n' % len(results))
+
+        if DEBUG:
+                _stamp('\nmi3')
+                results = db.sql('select * from mi3', 'auto')
+                for r in results:
+                        _stamp(r)
 
         before = _getCount('genotype_keepers')
         cmd = '''
@@ -1172,29 +1219,31 @@ def _handleMutationInvolves():
                 '''
         db.sql(cmd, None)
         _stamp('16:added rows to genotype_keepers from mi1: %d\n' % (_getCount('genotype_keepers') - before))
+        _addKeeper()
 
         before = _getCount('genotype_keepers')
         cmd = '''
                 insert into genotype_keepers
-                select s._Genotype_key, \'rule #3 : transgene clause\', s._Marker_key, s.symbol, s.gaccid, s.maccid
+                select s._Genotype_key, \'rule #3 : transgene clause\', mi2._Marker_key, mi2.symbol, s.gaccid, s.maccid
                 from scratchpad s, mi2
                 where s._genotype_key = mi2._genotype_key
                 '''
         db.sql(cmd, None)
         _stamp('16:added rows to genotype_keepers from mi2: %d\n' % (_getCount('genotype_keepers') - before))
+        _addKeeper()
 
         before = _getCount('genotype_keepers')
         cmd = '''
                 insert into genotype_keepers
-                select s._Genotype_key, \'rule #3 : docking site clause\', s._Marker_key, s.symbol, s.gaccid, s.maccid
+                select s._Genotype_key, \'rule #3 : docking site clause\', mi3._Marker_key, mi3.symbol, s.gaccid, s.maccid
                 from scratchpad s, mi3
                 where s._genotype_key = mi3._genotype_key
                 '''
         db.sql(cmd, None)
         _stamp('16:added rows to genotype_keepers from mi3: %d\n' % (_getCount('genotype_keepers') - before))
+        _addKeeper()
 
         before2 = _getCount('scratchpad')
-        _addScratchpad()
         db.sql('delete from scratchpad where _Genotype_key in (select _Genotype_key from mi_ct)', None)
         db.sql('delete from scratchpad where _Genotype_key in (select _Genotype_key from mi1)', None)
         db.sql('delete from scratchpad where _Genotype_key in (select _Genotype_key from mi2)', None)
@@ -1255,7 +1304,6 @@ def _handleTransgenes():
         _stamp('17:add rows to genotype_keepers for expressed components: %d' % (_getCount('genotype_keepers') - ct2))
         _addKeeper()
 
-        _addScratchpad()
         ct3 = _getCount('scratchpad')
         db.sql(cmdDel, None)
         _stamp('17:delete rows from scratchpad for transgenes: %d\n' % ( ct3 - _getCount('scratchpad')) )
@@ -1271,7 +1319,9 @@ def _handleDockingSites():
         # genotype is a docking site.
 
         _stamp('18:_handleDockingSites/rule #6 : docking site, 1 EC')
-        _stamp('18:_handleDockingSites/rule #9 : docking site, 0 EC')
+        _stamp('18:_handleDockingSites/rule #9 : docking site, Expresses No Components')
+        _stamp('18.1 :marker in (M) is a docking site other than Gt(ROSA)26Sor')
+        _stamp('18.2: allele subtype/attribute "Inserted_expressed_sequence" = false')
 
         docking_sites = ','.join(map(str, DOCKING_SITES))
 
@@ -1292,14 +1342,19 @@ def _handleDockingSites():
         # pick those up.  Gt(ROSA)26Sor is not known to have any of its own
         # phenotypes, so we leave that docking site out of this query.
 
+
         cmdDS2 = '''
                 insert into genotype_keepers
                 select s._Genotype_key, \'rule #9 : docking site, 0 EC\', s._Marker_key, s.symbol, s.gaccid, s.maccid
                 from scratchpad s
                 where s._Marker_key in (%d,%d)
-                        and not exists (select 1
-                                from has_expresses_component ct
-                                where s._Genotype_key = ct._Genotype_key)
+                        -- allele attribute "inserted expressed sequence" = false
+                        and not exists (select 1 from VOC_Annot b -- allele subtype annotation
+                                where b._AnnotType_key = 1014   
+                                and s._Allele_key = b._Object_key -- inserted expressed sequence
+                                and b._Term_key = 11025597     
+                                )
+
                  ''' % (HPRT, COL1A1)
 
         cmdDel = '''delete from scratchpad where _Marker_key in (%s)''' % docking_sites
@@ -1510,7 +1565,7 @@ def _initialize():
 
         _identifyExpressesComponent()
         _identifyMutationInvolves()
-        _countAllelePairsPerGenotype()
+        _countAllelePairsPerGenotype('GXD_AllelePair')
 
         _buildKeepersTable()
         _keepNaturallySimpleGenotypes()

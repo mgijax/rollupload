@@ -112,29 +112,47 @@ PROPERTY_MAP = None		# KeyMap for property key -> property name
 #'''
 
 # rule #3/crm192
+#testSQL = '''
+#and exists (select 1 from ACC_Accession testg 
+#where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
+#and testg.accid in (
+#'MGI:5297696',
+#'MGI:3721552',
+#'MGI:5430308',
+#'MGI:4822407',
+#'MGI:2388127',
+#'MGI:5610007',
+#'MGI:5634906',
+#'MGI:3717464',
+#'MGI:5521546',
+#'MGI:4415690',
+#'MGI:5288490',
+#'MGI:6693445',
+#'MGI:5487451',
+#'MGI:6710974',
+#'MGI:3036838',
+#'MGI:3052475',
+#'MGI:3805456',
+#'MGI:2663960',
+#'MGI:5527455'
+#)
+#)
+#'''
+
+# rule #9/crm204
 testSQL = '''
 and exists (select 1 from ACC_Accession testg 
 where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
 and testg.accid in (
-'MGI:5297696',
-'MGI:3721552',
-'MGI:5430308',
-'MGI:4822407',
-'MGI:2388127',
-'MGI:5610007',
-'MGI:5634906',
-'MGI:3717464',
-'MGI:5521546',
-'MGI:4415690',
-'MGI:5288490',
+'MGI:5567826',
 'MGI:6693445',
-'MGI:5487451',
-'MGI:6710974',
-'MGI:3036838',
-'MGI:3052475',
-'MGI:3805456',
-'MGI:2663960',
-'MGI:5527455'
+'MGI:5529093',
+'MGI:6377632',
+'MGI:6192446',
+'MGI:6403447',
+'MGI:5605719',
+'MGI:3623489',
+'MGI:3810360'
 )
 )
 '''
@@ -1171,7 +1189,7 @@ def _handleMutationInvolves():
         #
         docking_sites = ','.join(map(str, DOCKING_SITES))
         cmd = '''
-                select s.gaccid, s.maccid, s._Genotype_key, s._Marker_key, s.symbol
+                select s.gaccid, s.maccid, s._Genotype_key, mi._Marker_key, mi.symbol
                 into temp table mi3
                 from genotype_pair_counts c, scratchpad s, has_mutation_involves mi
                 where c.pair_count = 1
@@ -1182,18 +1200,7 @@ def _handleMutationInvolves():
                                 where s._Marker_key = m._Marker_key
                                 and m._Marker_key in (%s)
                         )
-                union
-                select s.gaccid, s.maccid, s._Genotype_key, mi._Marker_key, mi.symbol
-                from genotype_pair_counts c, scratchpad s, has_mutation_involves mi
-                where c.pair_count = 1
-                        and c._Genotype_key = s._Genotype_key
-                        and s._Genotype_key = mi._Genotype_key
-                        and exists (select 1 from mi_ct where s._Genotype_key = mi_ct._Genotype_key and mi_ct.marker_count = 1)
-                        and exists (select 1 from MRK_Marker m
-                                where s._Marker_key = m._Marker_key
-                                and m._Marker_key in (%s)
-                        )
-                ''' % (docking_sites, docking_sites)
+                ''' % (docking_sites)
 
         _stamp('16:add rows to mi3 rule#3/Docking Site clause')
         _stamp('16:1:the genotype has exactly 1 marker')
@@ -1319,31 +1326,32 @@ def _handleDockingSites():
         # genotype is a docking site.
 
         _stamp('18:_handleDockingSites/rule #6 : docking site, 1 EC')
-        _stamp('18:_handleDockingSites/rule #9 : docking site, Expresses No Components')
-        _stamp('18.1 :marker in (M) is a docking site other than Gt(ROSA)26Sor')
-        _stamp('18.2: allele subtype/attribute "Inserted_expressed_sequence" = false')
+        _stamp('18.1: marker count = 1')
+        _stamp('18.1: marker in (M) is a docking site')
+        _stamp('18.2: EC = expresses_mouse_gene')
 
         docking_sites = ','.join(map(str, DOCKING_SITES))
 
-        cmdDS = '''
+        cmd = '''
                 insert into genotype_keepers
                 select s._Genotype_key, \'rule #6 : docking site, 1 EC\', ec._Marker_key, s.symbol, s.gaccid, s.maccid
-                from scratchpad s,
-                        ec_ct ct,
-                        ec ec
+                from scratchpad s, ec_ct ct, ec ec
                 where s._Marker_key in (%s)
                         and s._Genotype_key = ct._Genotype_key
                         and ct.marker_count = 1
                         and ec._RelationshipTerm_key = 12965808 -- expresses_mouse_gene
                         and s._Genotype_key = ec._Genotype_key
                 ''' % (docking_sites)
+        ct = _getCount('genotype_keepers')
+        db.sql(cmd, None)
+        _stamp('18:add rows to genotype_keepers for docking sites rule #6: %d' % (_getCount('genotype_keepers') - ct))
+        _addKeeper()
 
-        # Hprt and Col1a1 can both have phenotypes of their own; we need to
-        # pick those up.  Gt(ROSA)26Sor is not known to have any of its own
-        # phenotypes, so we leave that docking site out of this query.
+        _stamp('18:_handleDockingSites/rule #9 : docking site, Expresses No Components')
+        _stamp('18.1: marker in (M) is a docking site other than Gt(ROSA)26Sor')
+        _stamp('18.2: allele subtype/attribute "Inserted_expressed_sequence" = false')
 
-
-        cmdDS2 = '''
+        cmd = '''
                 insert into genotype_keepers
                 select s._Genotype_key, \'rule #9 : docking site, 0 EC\', s._Marker_key, s.symbol, s.gaccid, s.maccid
                 from scratchpad s
@@ -1356,20 +1364,15 @@ def _handleDockingSites():
                                 )
 
                  ''' % (HPRT, COL1A1)
-
-        cmdDel = '''delete from scratchpad where _Marker_key in (%s)''' % docking_sites
-
-        ct1 = _getCount('genotype_keepers')
-        db.sql(cmdDS, None)
-        _stamp('18:add rows to genotype_keepers for docking sites rule 6: %d' % (_getCount('genotype_keepers') - ct1))
-        ct1a = _getCount('genotype_keepers')
-        db.sql(cmdDS2, None)
-        _stamp('18:add rows to genotype_keepers for docking sites rule 9: %d' % (_getCount('genotype_keepers') - ct1a))
+        ct = _getCount('genotype_keepers')
+        db.sql(cmd, None)
+        _stamp('18:add rows to genotype_keepers for docking sites rule #9: %d' % (_getCount('genotype_keepers') - ct))
         _addKeeper()
 
-        ct2 = _getCount('scratchpad')
-        db.sql(cmdDel, None)
-        _stamp('18:delete rows from scratchpad for docking sites: %d\n' % ( ct2 - _getCount('scratchpad')) )
+        cmd = '''delete from scratchpad where _Marker_key in (%s)''' % docking_sites
+        ct = _getCount('scratchpad')
+        db.sql(cmd, None)
+        _stamp('18:delete rows from scratchpad for docking sites: %d\n' % ( ct - _getCount('scratchpad')) )
         _deleteScratchpad()
 
         return

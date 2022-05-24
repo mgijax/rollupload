@@ -56,7 +56,7 @@ USER_MAP = None			# KeyMap for user key -> user
 PROPERTY_MAP = None		# KeyMap for property key -> property name
 
 # no testing
-#testSQL = ""
+testSQL = ""
 
 # rule #1
 #testSQL = '''
@@ -112,50 +112,50 @@ PROPERTY_MAP = None		# KeyMap for property key -> property name
 #'''
 
 # rule #3/crm192
-#testSQL = '''
-#and exists (select 1 from ACC_Accession testg 
-#where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
-#and testg.accid in (
-#'MGI:5297696',
-#'MGI:3721552',
-#'MGI:5430308',
-#'MGI:4822407',
-#'MGI:2388127',
-#'MGI:5610007',
-#'MGI:5634906',
-#'MGI:3717464',
-#'MGI:5521546',
-#'MGI:4415690',
-#'MGI:5288490',
-#'MGI:6693445',
-#'MGI:5487451',
-#'MGI:6710974',
-#'MGI:3036838',
-#'MGI:3052475',
-#'MGI:3805456',
-#'MGI:2663960',
-#'MGI:5527455'
-#)
-#)
-#'''
-
-# rule #9/crm204
 testSQL = '''
 and exists (select 1 from ACC_Accession testg 
 where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
 and testg.accid in (
-'MGI:5567826',
+'MGI:5297696',
+'MGI:3721552',
+'MGI:5430308',
+'MGI:4822407',
+'MGI:2388127',
+'MGI:5610007',
+'MGI:5634906',
+'MGI:3717464',
+'MGI:5521546',
+'MGI:4415690',
+'MGI:5288490',
 'MGI:6693445',
-'MGI:5529093',
-'MGI:6377632',
-'MGI:6192446',
-'MGI:6403447',
-'MGI:5605719',
-'MGI:3623489',
-'MGI:3810360'
+'MGI:5487451',
+'MGI:6710974',
+'MGI:3036838',
+'MGI:3052475',
+'MGI:3805456',
+'MGI:2663960',
+'MGI:5527455'
 )
 )
 '''
+
+# rule #9/crm204
+#testSQL = '''
+#and exists (select 1 from ACC_Accession testg 
+#where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
+#and testg.accid in (
+#'MGI:5567826',
+#'MGI:6693445',
+#'MGI:5529093',
+#'MGI:6377632',
+#'MGI:6192446',
+#'MGI:6403447',
+#'MGI:5605719',
+#'MGI:3623489',
+#'MGI:3810360'
+#)
+#)
+#'''
 
 ###--- classes ---###
 
@@ -1110,10 +1110,11 @@ def _handleMutationInvolves():
         cmd = '''
                 select distinct s.gaccid, s.maccid, s._Genotype_key, s._Marker_key, s.symbol
                 into temp table mi1
-                from genotype_pair_counts c, scratchpad s
+                from genotype_pair_counts c, scratchpad s, has_mutation_involves mi
                 where c.pair_count = 1
                         and c._Genotype_key = s._Genotype_key
-                        and exists (select 1 from has_mutation_involves mi where s._Genotype_key = mi._Genotype_key)
+                        and s._Genotype_key = mi._Genotype_key
+                        and s._Allele_key = mi._Allele_key
                         and (
                              exists (select 1 from VOC_Annot v
                                 where s._Marker_key = v._Object_key
@@ -1152,6 +1153,7 @@ def _handleMutationInvolves():
                 where c.pair_count = 1
                         and c._Genotype_key = s._Genotype_key
                         and s._Genotype_key = mi._Genotype_key
+                        and s._Allele_key = mi._Allele_key
                         and exists (select 1 from mi_ct where s._Genotype_key = mi_ct._Genotype_key and mi_ct.marker_count = 1)
                         and exists (select 1 from MRK_Marker m
                                 where s._Marker_key = m._Marker_key
@@ -1163,6 +1165,7 @@ def _handleMutationInvolves():
                 where c.pair_count = 1
                         and c._Genotype_key = s._Genotype_key
                         and s._Genotype_key = mi._Genotype_key
+                        and s._Allele_key = mi._Allele_key
                         and exists (select 1 from mi_ct where s._Genotype_key = mi_ct._Genotype_key and mi_ct.marker_count = 1)
                         and exists (select 1 from MRK_Marker m
                                 where s._Marker_key = m._Marker_key
@@ -1195,6 +1198,7 @@ def _handleMutationInvolves():
                 where c.pair_count = 1
                         and c._Genotype_key = s._Genotype_key
                         and s._Genotype_key = mi._Genotype_key
+                        and s._Allele_key = mi._Allele_key
                         and exists (select 1 from mi_ct where s._Genotype_key = mi_ct._Genotype_key and mi_ct.marker_count = 1)
                         and exists (select 1 from MRK_Marker m
                                 where s._Marker_key = m._Marker_key
@@ -1205,8 +1209,7 @@ def _handleMutationInvolves():
         _stamp('16:add rows to mi3 rule#3/Docking Site clause')
         _stamp('16:1:the genotype has exactly 1 marker')
         _stamp('16:2:the marker is Docking Site (Col1a1, Gt(ROSA)26Sor, Hprt)')
-        _stamp('16:3:rollup to both marker in (M) and marker in (I)')
-        _stamp('16:4:the genotype has exactly 1 mutation involves marker in (I)')
+        _stamp('16:3:the genotype has exactly 1 mutation involves marker in (I)')
         db.sql(cmd, None)
         db.sql('create index mi3_1 on mi3 (_Genotype_key)', None)
         db.sql('create index mi3_2 on mi3 (_Marker_key)', None)

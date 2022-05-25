@@ -138,23 +138,23 @@ testSQL = ""
 #'''
 
 # rule #9/crm204
-testSQL = '''
-and exists (select 1 from ACC_Accession testg 
-where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
-and testg.accid in (
-'MGI:5567826',
-'MGI:6693445',
-'MGI:5529093',
-'MGI:6377632',
-'MGI:6192446',
-'MGI:6403447',
-'MGI:5605719',
-'MGI:3623489',
-'MGI:3810360',
-'MGI:5757706'
-)
-)
-'''
+#testSQL = '''
+#and exists (select 1 from ACC_Accession testg 
+#where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
+#and testg.accid in (
+#'MGI:5567826',
+#'MGI:6693445',
+#'MGI:5529093',
+#'MGI:6377632',
+#'MGI:6192446',
+#'MGI:6403447',
+#'MGI:5605719',
+#'MGI:3623489',
+#'MGI:3810360',
+#'MGI:5757706'
+#)
+#)
+#'''
 
 ###--- classes ---###
 

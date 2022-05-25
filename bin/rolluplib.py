@@ -17,10 +17,8 @@ import mgi_utils
 ###--- globals ---###
 
 db.setTrace()
-
 Error = 'rolluplib.Error'
-
-DEBUG = 1
+DEBUG = False
 
 MAX_ANNOTATIONS = 1000		# maximum number of annotations to cache in
 
@@ -140,22 +138,22 @@ testSQL = ""
 #'''
 
 # rule #9/crm204
-testSQL = '''
-and exists (select 1 from ACC_Accession testg 
-where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
-and testg.accid in (
-'MGI:5567826',
-'MGI:6693445',
-'MGI:5529093',
-'MGI:6377632',
-'MGI:6192446',
-'MGI:6403447',
-'MGI:5605719',
-'MGI:3623489',
-'MGI:3810360'
-)
-)
-'''
+#testSQL = '''
+#and exists (select 1 from ACC_Accession testg 
+#where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
+#and testg.accid in (
+#'MGI:5567826',
+#'MGI:6693445',
+#'MGI:5529093',
+#'MGI:6377632',
+#'MGI:6192446',
+#'MGI:6403447',
+#'MGI:5605719',
+#'MGI:3623489',
+#'MGI:3810360'
+#)
+#)
+#'''
 
 ###--- classes ---###
 
@@ -343,24 +341,25 @@ class Marker:
 
                                 properties = self._buildPropertiesValue(evidKey)
 
-                                #row = [
-                                #        termID,
-                                #        markerID,
-                                #        jnumID,
-                                #        evidenceCode,
-                                #        inferredFrom,
-                                #        qualifier,
-                                #        user,
-                                #        '',
-                                #        notes,
-                                #        '',
-                                #        properties
-                                #        ]
-
-                                row = [
-                                        termID,
-                                        markerID
-                                        ]
+                                if DEBUG:
+                                        row = [
+                                                termID,
+                                                markerID
+                                                ]
+                                else:
+                                        row = [
+                                                termID,
+                                                markerID,
+                                                jnumID,
+                                                evidenceCode,
+                                                inferredFrom,
+                                                qualifier,
+                                                user,
+                                                '',
+                                                notes,
+                                                '',
+                                                properties
+                                                ]
 
                                 self.finalAnnotations.append(row) 
 
@@ -1489,8 +1488,13 @@ def _initializeKeyMaps():
                 raise Error('Need to call setAnnotationType()')
 
         # map from annotated term IDs to their IDs
+        if DEBUG:
+                accID = "aa.accID || ':' || t.term as accID"
+        else:
+                accID = "aa.accID as accID"
+
         termCmd = '''
-                select distinct aa._Object_key, aa.accID || ':' || t.term as accID
+                select distinct aa._Object_key, %s
                 from VOC_Annot va, ACC_Accession aa, VOC_Term t
                 where va._AnnotType_key in (%d)
                 and va._Term_key = aa._Object_key
@@ -1498,12 +1502,17 @@ def _initializeKeyMaps():
                 and aa.private = 0
                 and aa.preferred = 1
                 and va._Term_key = t._Term_key
-                ''' % (CURRENT_ANNOT_TYPE)
+                ''' % (accID, CURRENT_ANNOT_TYPE)
         TERM_MAP = KeyMap(termCmd, '_Object_key', 'accID')
 
         # map from annotated markers to their MGI IDs
+        if DEBUG:
+                accID = "aa.accID || ':' || m.symbol as accID"
+        else:
+                accID = "aa.accID as accID"
+
         markerCmd = '''
-                select distinct aa._Object_key, aa.accID || ':' || m.symbol as accID
+                select distinct aa._Object_key, %s
                 from genotype_keepers k, ACC_Accession aa, MRK_Marker m
                 where k._Marker_key = aa._Object_key
                         and aa._MGIType_key = 2
@@ -1511,7 +1520,7 @@ def _initializeKeyMaps():
                         and aa.preferred = 1
                         and aa._LogicalDB_key = 1
                         and k._Marker_key = m._Marker_key
-                '''
+                ''' % (accID)
         MARKER_MAP = KeyMap(markerCmd, '_Object_key', 'accID')
 
         # map from reference keys to their Jnum IDs

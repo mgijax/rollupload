@@ -116,7 +116,7 @@ checkStatus ${STAT} "${ROLLUPLOAD}/bin/rollupload.py diseaseMarker"
 #
 # create MP/marker input file for annotation load
 #
-echo 'Running rollupload.py mpMarker' >> ${LOG_DIAG}
+#echo 'Running rollupload.py mpMarker' >> ${LOG_DIAG}
 
 ANNOTPROPERTY=`grep '^setenv ANNOTPROPERTY' ${ROLLUPLOAD}/mpMarker.csh.config | awk '{print $3}'`
 export ANNOTPROPERTY
@@ -132,23 +132,23 @@ checkStatus ${STAT} "${ROLLUPLOAD}/bin/rollupload.py mpMarker"
 # run annotation load for disease/marker
 #
 
-#COMMON_CONFIG_CSH=${ROLLUPLOAD}/diseaseMarker.csh.config
-#echo "Running disease rollupload annotation load" >> ${LOG_DIAG}
-#cd ${OUTPUTDIR}
-#${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} diseaseMarker >> ${LOG_DIAG}
-#STAT=$?
-#checkStatus ${STAT} "${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} diseaseMarker"
+COMMON_CONFIG_CSH=${ROLLUPLOAD}/diseaseMarker.csh.config
+echo "Running disease rollupload annotation load" >> ${LOG_DIAG}
+cd ${OUTPUTDIR}
+${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} diseaseMarker >> ${LOG_DIAG}
+STAT=$?
+checkStatus ${STAT} "${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} diseaseMarker"
 
 #
 # run annotation load for MP/marker
 #
 
-#COMMON_CONFIG_CSH=${ROLLUPLOAD}/mpMarker.csh.config
-#echo "Running MP rollupload annotation load" >> ${LOG_DIAG}
-#cd ${OUTPUTDIR}
-#${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} mpMarker >> ${LOG_DIAG}
-#STAT=$?
-#checkStatus ${STAT} "${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} mpMarker"
+COMMON_CONFIG_CSH=${ROLLUPLOAD}/mpMarker.csh.config
+echo "Running MP rollupload annotation load" >> ${LOG_DIAG}
+cd ${OUTPUTDIR}
+${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} mpMarker >> ${LOG_DIAG}
+STAT=$?
+checkStatus ${STAT} "${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} mpMarker"
 
 #
 # run postload cleanup and email logs

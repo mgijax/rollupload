@@ -20,6 +20,8 @@ import rolluplib
 
 ###--- globals ---###
 
+DEBUG = False
+
 # annotation formatted file
 annotFileName = None
 
@@ -100,10 +102,11 @@ rolluplib.addTiming('Finished initialization')
 #   9. notes - optional
 #  10. empty (default column 2 to MGI marker IDs)
 #  11. properties - optional
-#annotLine = '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n'
 
-# testing
-annotLine = '%s\t%s\n'
+if DEBUG:
+        annotLine = '%s\t%s\n'
+else:
+        annotLine = '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n'
 
 marker = rolluplib.getNextMarker()
 while marker:

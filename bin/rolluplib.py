@@ -78,38 +78,38 @@ testSQL = ""
 #'''
 
 # rule #2/crm160
-testSQL = '''
-and exists (select 1 from ACC_Accession testg 
-where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
-and testg.accid in (
-'MGI:4948663',
-'MGI:5439284',
-'MGI:6294154',
-'MGI:5755142',
-'MGI:6414594',
-'MGI:5312862',
-'MGI:4830769',
-'MGI:3653173',
-'MGI:5521544',
-'MGI:5448443',
-'MGI:5523279',
-'MGI:5312862',
-'MGI:4830769',
-'MGI:3712071',
-'MGI:4361923',
-'MGI:5312862',
-'MGI:4830769',
-'MGI:5297696',
-'MGI:5567826',
-'MGI:6414594',
-'MGI:5003460',
-'MGI:3721552',
-'MGI:5288490',
-'MGI:5003501',
-'MGI:5430308'
-)
-)
-'''
+#testSQL = '''
+#and exists (select 1 from ACC_Accession testg 
+#where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
+#and testg.accid in (
+#'MGI:4948663',
+#'MGI:5439284',
+#'MGI:6294154',
+#'MGI:5755142',
+#'MGI:6414594',
+#'MGI:5312862',
+#'MGI:4830769',
+#'MGI:3653173',
+#'MGI:5521544',
+#'MGI:5448443',
+#'MGI:5523279',
+#'MGI:5312862',
+#'MGI:4830769',
+#'MGI:3712071',
+#'MGI:4361923',
+#'MGI:5312862',
+#'MGI:4830769',
+#'MGI:5297696',
+#'MGI:5567826',
+#'MGI:6414594',
+#'MGI:5003460',
+#'MGI:3721552',
+#'MGI:5288490',
+#'MGI:5003501',
+#'MGI:5430308'
+#)
+#)
+#'''
 
 # rule #3/crm192
 #testSQL = '''
@@ -140,22 +140,22 @@ and testg.accid in (
 #'''
 
 # rule #9/crm204
-#testSQL = '''
-#and exists (select 1 from ACC_Accession testg 
-#where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
-#and testg.accid in (
-#'MGI:5567826',
-#'MGI:6693445',
-#'MGI:5529093',
-#'MGI:6377632',
-#'MGI:6192446',
-#'MGI:6403447',
-#'MGI:5605719',
-#'MGI:3623489',
-#'MGI:3810360'
-#)
-#)
-#'''
+testSQL = '''
+and exists (select 1 from ACC_Accession testg 
+where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
+and testg.accid in (
+'MGI:5567826',
+'MGI:6693445',
+'MGI:5529093',
+'MGI:6377632',
+'MGI:6192446',
+'MGI:6403447',
+'MGI:5605719',
+'MGI:3623489',
+'MGI:3810360'
+)
+)
+'''
 
 ###--- classes ---###
 

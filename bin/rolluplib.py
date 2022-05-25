@@ -20,7 +20,7 @@ db.setTrace()
 Error = 'rolluplib.Error'
 DEBUG = False
 
-MAX_ANNOTATIONS = 1000		# maximum number of annotations to cache in
+MAX_ANNOTATIONS = 5000		# maximum number of annotations to cache in
 
 CURRENT_ANNOT_TYPE = None	# either DO_GENOTYPE or MP_GENOTYPE
 DO_GENOTYPE = 1020		# DO/Genotype annotation type
@@ -138,22 +138,23 @@ testSQL = ""
 #'''
 
 # rule #9/crm204
-#testSQL = '''
-#and exists (select 1 from ACC_Accession testg 
-#where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
-#and testg.accid in (
-#'MGI:5567826',
-#'MGI:6693445',
-#'MGI:5529093',
-#'MGI:6377632',
-#'MGI:6192446',
-#'MGI:6403447',
-#'MGI:5605719',
-#'MGI:3623489',
-#'MGI:3810360'
-#)
-#)
-#'''
+testSQL = '''
+and exists (select 1 from ACC_Accession testg 
+where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
+and testg.accid in (
+'MGI:5567826',
+'MGI:6693445',
+'MGI:5529093',
+'MGI:6377632',
+'MGI:6192446',
+'MGI:6403447',
+'MGI:5605719',
+'MGI:3623489',
+'MGI:3810360',
+'MGI:5757706'
+)
+)
+'''
 
 ###--- classes ---###
 

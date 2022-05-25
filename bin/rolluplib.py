@@ -112,50 +112,50 @@ testSQL = ""
 #'''
 
 # rule #3/crm192
-testSQL = '''
-and exists (select 1 from ACC_Accession testg 
-where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
-and testg.accid in (
-'MGI:5297696',
-'MGI:3721552',
-'MGI:5430308',
-'MGI:4822407',
-'MGI:2388127',
-'MGI:5610007',
-'MGI:5634906',
-'MGI:3717464',
-'MGI:5521546',
-'MGI:4415690',
-'MGI:5288490',
-'MGI:6693445',
-'MGI:5487451',
-'MGI:6710974',
-'MGI:3036838',
-'MGI:3052475',
-'MGI:3805456',
-'MGI:2663960',
-'MGI:5527455'
-)
-)
-'''
-
-# rule #9/crm204
 #testSQL = '''
 #and exists (select 1 from ACC_Accession testg 
 #where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
 #and testg.accid in (
-#'MGI:5567826',
+#'MGI:5297696',
+#'MGI:3721552',
+#'MGI:5430308',
+#'MGI:4822407',
+#'MGI:2388127',
+#'MGI:5610007',
+#'MGI:5634906',
+#'MGI:3717464',
+#'MGI:5521546',
+#'MGI:4415690',
+#'MGI:5288490',
 #'MGI:6693445',
-#'MGI:5529093',
-#'MGI:6377632',
-#'MGI:6192446',
-#'MGI:6403447',
-#'MGI:5605719',
-#'MGI:3623489',
-#'MGI:3810360'
+#'MGI:5487451',
+#'MGI:6710974',
+#'MGI:3036838',
+#'MGI:3052475',
+#'MGI:3805456',
+#'MGI:2663960',
+#'MGI:5527455'
 #)
 #)
 #'''
+
+# rule #9/crm204
+testSQL = '''
+and exists (select 1 from ACC_Accession testg 
+where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
+and testg.accid in (
+'MGI:5567826',
+'MGI:6693445',
+'MGI:5529093',
+'MGI:6377632',
+'MGI:6192446',
+'MGI:6403447',
+'MGI:5605719',
+'MGI:3623489',
+'MGI:3810360'
+)
+)
+'''
 
 ###--- classes ---###
 
@@ -504,8 +504,7 @@ def _identifyMutationInvolves():
 
 def _countAllelePairsPerGenotype(table):
         # collect into a temp table (genotype_pair_counts) the genotypes that
-        # have annotations attached, along with the count of allele pairs for
-        # each genotype
+        # have annotations attached, along with the count of allele pairs for each genotype
 
         _stamp('2:_countAllelePairsPerGenotype')
 
@@ -515,7 +514,7 @@ def _countAllelePairsPerGenotype(table):
                 cmd = '''
                         select gag._Genotype_key, count(1) as pair_count
                         into temp table genotype_pair_counts
-                        from GXD_AllelePair gag
+                        from GXD_AlleleGenotype gag
                         where exists (select 1 from VOC_Annot v
                                 where v._AnnotType_key in (%d)
                                 and v._Term_key != %d
@@ -1103,6 +1102,10 @@ def _handleMutationInvolves():
         results = db.sql('select * from mi_ct', 'auto')
         _stamp('select * from mi_ct: %d\n' % len(results))
         #_stamp(results)
+
+        #
+        # important : check scratchpad by genotype AND allele
+        #
 
         #
         # rule #3 Non-Transgene clause
@@ -1792,7 +1795,6 @@ def _getEvidenceProperties (startMarker, endMarker, rawEvidence):
                         seqRows.append(newProperty)
 
                 # and add the new source property
-
                 byEvidenceKey[evidenceKey] = rows + seqRows
                 added = added + len(seqRows)
 

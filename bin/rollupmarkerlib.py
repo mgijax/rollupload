@@ -18,7 +18,7 @@ import mgi_utils
 
 db.setTrace()
 Error = 'rollupmarkerlib.Error'
-DEBUG = True
+DEBUG = False
 
 MAX_ANNOTATIONS = 5000		# maximum number of annotations to cache in
 

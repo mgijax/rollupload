@@ -20,7 +20,7 @@ import rollupmarkerlib
 
 ###--- globals ---###
 
-DEBUG = True
+DEBUG = False
 
 # annotation formatted file
 annotFileName = None

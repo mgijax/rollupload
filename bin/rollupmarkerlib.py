@@ -510,7 +510,7 @@ def _countAllelePairsPerGenotype(table):
 
         db.sql('drop table if exists genotype_pair_counts', None);
 
-        if (table == 'GXD_AllelePair'):
+        if (table == 'GXD_AlleleGenotype'):
                 cmd = '''
                         select gag._Genotype_key, count(1) as pair_count
                         into temp table genotype_pair_counts
@@ -1584,7 +1584,7 @@ def _initialize():
 
         _identifyExpressesComponent()
         _identifyMutationInvolves()
-        _countAllelePairsPerGenotype('GXD_AllelePair')
+        _countAllelePairsPerGenotype('GXD_AlleleGenotype')
 
         _buildKeepersTable()
         _keepNaturallySimpleGenotypes()

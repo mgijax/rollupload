@@ -18,7 +18,7 @@ import mgi_utils
 
 db.setTrace()
 Error = 'rolluplib.Error'
-DEBUG = False
+DEBUG = True
 
 MAX_ANNOTATIONS = 5000		# maximum number of annotations to cache in
 
@@ -574,7 +574,7 @@ def _keepNaturallySimpleGenotypes():
         #
 
         _stamp('4:_keepNaturallySimpleGenotypes/genotype_keepers/rule #1 : one marker genotype')
-        _stamp('4.1:only one marker (same as: only one allele pair)')
+        _stamp('4.1:only one marker')
         _stamp('4.2:has_mutation_involves = false')
         _stamp('4.3:allele attribute "inserted expressed sequence" = false')
         _stamp('4.4:isConditional = false')

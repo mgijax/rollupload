@@ -16,11 +16,11 @@
 
 import os
 import sys
-import rolluplib
+import rollupmarkerlib
 
 ###--- globals ---###
 
-DEBUG = False
+DEBUG = True
 
 # annotation formatted file
 annotFileName = None
@@ -57,9 +57,9 @@ def initialize():
 
         annotType = sys.argv[1]
         if annotType == 'diseaseMarker':
-                rolluplib.setAnnotationType(rolluplib.DO_GENOTYPE)
+                rollupmarkerlib.setAnnotationType(rollupmarkerlib.DO_GENOTYPE)
         elif annotType == 'mpMarker':
-                rolluplib.setAnnotationType(rolluplib.MP_GENOTYPE)
+                rollupmarkerlib.setAnnotationType(rollupmarkerlib.MP_GENOTYPE)
         else:
                 print('Unknown annotation type: %s' % annotType)
                 return 1
@@ -88,7 +88,7 @@ def finalize():
 if initialize():
         sys.exit(1)
 
-rolluplib.addTiming('Finished initialization')
+rollupmarkerlib.addTiming('Finished initialization')
 
 # template for one line for the annnotation loader:
 #   1. vocab term ID
@@ -108,15 +108,15 @@ if DEBUG:
 else:
         annotLine = '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n'
 
-marker = rolluplib.getNextMarker()
+marker = rollupmarkerlib.getNextMarker()
 while marker:
         for annot in marker.getAnnotations():
                 annotFile.write(annotLine % tuple(annot))
-        marker = rolluplib.getNextMarker()
+        marker = rollupmarkerlib.getNextMarker()
 
 if finalize():
         sys.exit(1)
 
 print('Outcome:  Generated %s successfully' % annotFileName)
 
-rolluplib.addTiming('Finished writing output file')
+rollupmarkerlib.addTiming('Finished writing output file')

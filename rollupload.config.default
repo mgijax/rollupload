@@ -45,12 +45,13 @@ OUTPUTDIR=${FILEDIR}/output
 
 # directory where input files are created by rollupload.py
 INPUTDIR=${FILEDIR}/input
-DISEASE_INFILE_NAME=${INPUTDIR}/diseaseMarker.annot
-DISEASEDO_INFILE_NAME=${INPUTDIR}/diseaseMarkerDO.annot
-MP_INFILE_NAME=${INPUTDIR}/mpMarker.annot
+DISEASEMARKER_INFILE_NAME=${INPUTDIR}/diseaseMarker.annot
+MPMARKER_INFILE_NAME=${INPUTDIR}/mpMarker.annot
+DISEASEALLELE_INFILE_NAME=${INPUTDIR}/diseaseAllele.annot
+MPALLELE_INFILE_NAME=${INPUTDIR}/mpAllele.annot
 
 export FILEDIR ARCHIVEDIR LOGDIR RPTDIR OUTPUTDIR
-export INPUTDIR DISEASE_INFILE_NAME DISEASEDO_INFILE_NAME MP_INFILE_NAME
+export INPUTDIR DISEASEMARKER_INFILE_NAME MPMARKER_INFILE_NAME DISEASEALLELE_INFILE_NAME MPALLELE_INFILE_NAME
 
 #  Complete path name of the log files
 LOG_FILE=${LOGDIR}/rollupload.log
@@ -76,7 +77,7 @@ export JOBSTREAM
 ###########################################################################
 
 #  The name of the load for the subject of an email notification
-MAIL_LOADNAME="Marker Rollup annotation load"
+MAIL_LOADNAME="Marker & Allele Rollup annotation load"
 
 export MAIL_LOADNAME
 

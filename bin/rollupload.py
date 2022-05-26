@@ -17,16 +17,19 @@
 import os
 import sys
 import rollupmarkerlib
+import rollupallelelib
 
 ###--- globals ---###
 
-DEBUG = False
+DEBUG = True
 
 # annotation formatted file
 annotFileName = None
 
 # annotation file pointer
 annotFile = None
+
+annotType = ""
 
 ###--- functions ---###
 
@@ -37,7 +40,7 @@ def initialize():
         # Effects: opens output file
         # Throws: nothing
 
-        global annotFileName, annotFile
+        global annotFileName, annotFile, annotType
 
         try:
                 annotFileName = os.environ['INFILE_NAME']
@@ -60,6 +63,10 @@ def initialize():
                 rollupmarkerlib.setAnnotationType(rollupmarkerlib.DO_GENOTYPE)
         elif annotType == 'mpMarker':
                 rollupmarkerlib.setAnnotationType(rollupmarkerlib.MP_GENOTYPE)
+        elif annotType == 'diseaseAllele':
+                rollupallelelib.setAnnotationType(rollupallelelib.DO_GENOTYPE)
+        elif annotType == 'mpAllele':
+                rollupallelelib.setAnnotationType(rollupallelelib.MP_GENOTYPE)
         else:
                 print('Unknown annotation type: %s' % annotType)
                 return 1
@@ -88,7 +95,10 @@ def finalize():
 if initialize():
         sys.exit(1)
 
-rollupmarkerlib.addTiming('Finished initialization')
+if annotType in ('diseaseMarker', 'mpMarker'):
+        rollupmarkerlib.addTiming('Finished initialization')
+elif annotType in ('diseaseAllele', 'mpAllele'):
+        rollupallelelib.addTiming('Finished initialization')
 
 # template for one line for the annnotation loader:
 #   1. vocab term ID
@@ -108,15 +118,26 @@ if DEBUG:
 else:
         annotLine = '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n'
 
-marker = rollupmarkerlib.getNextMarker()
-while marker:
-        for annot in marker.getAnnotations():
-                annotFile.write(annotLine % tuple(annot))
+if annotType in ('diseaseMarker', 'mpMarker'):
         marker = rollupmarkerlib.getNextMarker()
+        while marker:
+                for annot in marker.getAnnotations():
+                        annotFile.write(annotLine % tuple(annot))
+                marker = rollupmarkerlib.getNextMarker()
+elif annotType in ('diseaseAllele', 'mpAllele'):
+        allele = rollupallelelib.getNextAllele()
+        while allele:
+                for annot in allele.getAnnotations():
+                        annotFile.write(annotLine % tuple(annot))
+                allele = rollupallelelib.getNextAllele()
 
 if finalize():
         sys.exit(1)
 
 print('Outcome:  Generated %s successfully' % annotFileName)
 
-rollupmarkerlib.addTiming('Finished writing output file')
+if annotType in ('diseaseMarker', 'mpMarker'):
+        rollupmarkerlib.addTiming('Finished writing output file')
+elif annotType in ('diseaseAllele', 'mpAllele'):
+        rollupallelelib.addTiming('Finished writing output file')
+

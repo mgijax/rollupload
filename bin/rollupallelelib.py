@@ -50,6 +50,35 @@ PROPERTY_MAP = None		# KeyMap for property key -> property name
 # no testing
 testSQL = ""
 
+testSQL = '''
+and exists (select 1 from ACC_Accession testg 
+where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
+and testg.accid in (
+'MGI:3776488',
+'MGI:2667804',
+'MGI:2173405',
+'MGI:3799369',
+'MGI:3723214',
+'MGI:2665793',
+'MGI:3814544',
+'MGI:2678410',
+'MGI:5439284',
+'MGI:3836962',
+'MGI:3510920',
+'MGI:5897214',
+'MGI:5558945',
+'MGI:5882410',
+'MGI:3613531',
+'MGI:3837691',
+'MGI:3776520',
+'MGI:3698007',
+'MGI:3814907',
+'MGI:5690044',
+'MGI:6450805'
+)
+)
+'''
+
 ###--- classes ---###
 
 class KeyMap:
@@ -312,17 +341,17 @@ def _stampResults(s, order = ''):
 def _addKeeper():
         if DEBUG:
                 _stamp('after add to genotype_keepers')
-                _stampResults('genotype_keepers', 'order by gaccid, maccid')
+                _stampResults('genotype_keepers', 'order by gaccid, aaccid')
 
 def _deleteKeeper():
         if DEBUG:
                 _stamp('after delete from genotype_keepers')
-                _stampResults('genotype_keepers', 'order by gaccid, maccid')
+                _stampResults('genotype_keepers', 'order by gaccid, aaccid')
 
 def _deleteScratchpad():
         if DEBUG:
                 _stamp('after delete from scratchpad')
-                _stampResults('scratchpad', 'order by gaccid, maccid')
+                _stampResults('scratchpad', 'order by gaccid, aaccid')
 
         # re-create genotype_pair_counts from scratchpad
         _countAllelePairsPerGenotype('scratchpad')
@@ -411,7 +440,7 @@ def _keepNaturallySimpleGenotypes():
                 insert into genotype_keepers
                 select distinct g._Genotype_key,
                         'rule #1 : one allele genotype',
-                        p._Allele_key, m.symbol, a1.accid, a2.accid
+                        p._Allele_key, a.symbol, a1.accid, a2.accid
                 from genotype_pair_counts g,
                         GXD_AlleleGenotype p,
                         GXD_Genotype gg,
@@ -546,7 +575,7 @@ def _buildScratchPad():
                         g.isConditional,
                         a.symbol,
                         a1.accid as gaccid,
-                        a2.accid as maccid
+                        a2.accid as aaccid
                 into temp table scratchpad
                 from genotype_pair_counts c,
                         GXD_AlleleGenotype gag,
@@ -755,15 +784,15 @@ def _collectAlleleSets():
 
                 if DEBUG:
                         results = db.sql('''
-                                select a.accid, a.symbol, t.* 
-                                from %s t, ALL_Allele a, ACC_Accession a
+                                select ac.accid, a.symbol, t.* 
+                                from %s t, ALL_Allele a, ACC_Accession ac
                                 where t._Allele_key = a._Allele_key
-                                and m._Allele_key = a._Object_key
-                                and a._MGIType_key = 11
-                                and a._logicaldb_key = 1
-                                and a.prefixpart = 'MGI:'
-                                and a.preferred = 1
-                                order by a.accid
+                                and a._Allele_key = ac._Object_key
+                                and ac._MGIType_key = 11
+                                and ac._logicaldb_key = 1
+                                and ac.prefixpart = 'MGI:'
+                                and ac.preferred = 1
+                                order by ac.accid
                                 ''' % (tbl1), 'auto')
                         for r in results:
                                 _stamp(r)
@@ -841,18 +870,18 @@ def _initializeKeyMaps():
 
         # map from annotated alleles to their MGI IDs
         if DEBUG:
-                accID = "aa.accID || ':' || m.symbol as accID"
+                accID = "ac.accID || ':' || a.symbol as accID"
         else:
-                accID = "aa.accID as accID"
+                accID = "ac.accID as accID"
 
         alleleCmd = '''
                 select distinct aa._Object_key, %s
-                from genotype_keepers k, ACC_Accession aa, ALL_Allele a
-                where k._Allele_key = aa._Object_key
-                        and aa._MGIType_key = 11
-                        and aa.private = 0
-                        and aa.preferred = 1
-                        and aa._LogicalDB_key = 1
+                from genotype_keepers k, ACC_Accession ac, ALL_Allele a
+                where k._Allele_key = ac._Object_key
+                        and ac._MGIType_key = 11
+                        and ac.private = 0
+                        and ac.preferred = 1
+                        and ac._LogicalDB_key = 1
                         and k._Allele_key = a._Allele_key
                 ''' % (accID)
         ALLELE_MAP = KeyMap(alleleCmd, '_Object_key', 'accID')

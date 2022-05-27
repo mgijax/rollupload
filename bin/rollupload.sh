@@ -137,14 +137,14 @@ checkStatus ${STAT} "${ROLLUPLOAD}/bin/rollupload.py diseaseAllele"
 #
 # create MP/allele input file for annotation load
 #
-#echo 'Running rollupload.py mpAllele' >> ${LOG_DIAG}
-#ANNOTPROPERTY=`grep '^setenv ANNOTPROPERTY' ${ROLLUPLOAD}/mpAllele.csh.config | awk '{print $3}'`
-#export ANNOTPROPERTY
-#INFILE_NAME=${MPALLELE_INFILE_NAME}
-#export INFILE_NAME
-#${PYTHON} ${ROLLUPLOAD}/bin/rollupload.py mpAllele >> ${LOG_DIAG} 2>&1
-#STAT=$?
-#checkStatus ${STAT} "${ROLLUPLOAD}/bin/rollupload.py mpAllele"
+echo 'Running rollupload.py mpAllele' >> ${LOG_DIAG}
+ANNOTPROPERTY=`grep '^setenv ANNOTPROPERTY' ${ROLLUPLOAD}/mpAllele.csh.config | awk '{print $3}'`
+export ANNOTPROPERTY
+INFILE_NAME=${MPALLELE_INFILE_NAME}
+export INFILE_NAME
+${PYTHON} ${ROLLUPLOAD}/bin/rollupload.py mpAllele >> ${LOG_DIAG} 2>&1
+STAT=$?
+checkStatus ${STAT} "${ROLLUPLOAD}/bin/rollupload.py mpAllele"
 
 #
 # run annotation load for disease/marker

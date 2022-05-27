@@ -18,7 +18,7 @@ import mgi_utils
 
 db.setTrace()
 Error = 'rollupmarkerlib.Error'
-DEBUG = False
+DEBUG = True
 
 MAX_ANNOTATIONS = 5000		# maximum number of annotations to cache in
 
@@ -57,104 +57,80 @@ PROPERTY_MAP = None		# KeyMap for property key -> property name
 testSQL = ""
 
 # rule #1/crm159
-#testSQL = '''
-#and exists (select 1 from ACC_Accession testg 
-#where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
-#and testg.accid in (
-#'MGI:4946295',
-#'MGI:2173405',
-#'MGI:3776495',
-#'MGI:5449569',
-#'MGI:5293787',
-#'MGI:4948663',
-#'MGI:5297696',
-#'MGI:3720108',
-#'MGI:6414594',
-#'MGI:5567826'
-#)
-#)
-#'''
+testSQL = '''
+and exists (select 1 from ACC_Accession testg 
+where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
+and testg.accid in (
+'MGI:4946295',
+'MGI:2173405',
+'MGI:3776495',
+'MGI:5449569',
+'MGI:5293787',
+'MGI:4948663',
+'MGI:5297696',
+'MGI:3720108',
+'MGI:6414594',
+'MGI:5567826'
 
-# rule #2/crm160
-#testSQL = '''
-#and exists (select 1 from ACC_Accession testg 
-#where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
-#and testg.accid in (
-#'MGI:4948663',
-#'MGI:5439284',
-#'MGI:6294154',
-#'MGI:5755142',
-#'MGI:6414594',
-#'MGI:5312862',
-#'MGI:4830769',
-#'MGI:3653173',
-#'MGI:5521544',
-#'MGI:5448443',
-#'MGI:5523279',
-#'MGI:5312862',
-#'MGI:4830769',
-#'MGI:3712071',
-#'MGI:4361923',
-#'MGI:5312862',
-#'MGI:4830769',
-#'MGI:5297696',
-#'MGI:5567826',
-#'MGI:6414594',
-#'MGI:5003460',
-#'MGI:3721552',
-#'MGI:5288490',
-#'MGI:5003501',
-#'MGI:5430308'
-#)
-#)
-#'''
-
-# rule #3/crm192
-#testSQL = '''
-#and exists (select 1 from ACC_Accession testg 
-#where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
-#and testg.accid in (
-#'MGI:5297696',
-#'MGI:3721552',
-#'MGI:5430308',
-#'MGI:4822407',
-#'MGI:2388127',
-#'MGI:5610007',
-#'MGI:5634906',
-#'MGI:3717464',
-#'MGI:5521546',
-#'MGI:4415690',
-#'MGI:5288490',
-#'MGI:6693445',
-#'MGI:5487451',
-#'MGI:6710974',
-#'MGI:3036838',
-#'MGI:3052475',
-#'MGI:3805456',
-#'MGI:2663960',
-#'MGI:5527455'
-#)
-#)
-#'''
-
-# rule #9/crm204
-#testSQL = '''
-#and exists (select 1 from ACC_Accession testg 
-#where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
-#and testg.accid in (
-#'MGI:5567826',
-#'MGI:6693445',
-#'MGI:5529093',
-#'MGI:6377632',
-#'MGI:6192446',
-#'MGI:6403447',
-#'MGI:5605719',
-#'MGI:3623489',
-#'MGI:3810360',
-#'MGI:5757706'
-#)
-#)
-#'''
+'MGI:4948663',
+'MGI:5439284',
+'MGI:6294154',
+'MGI:5755142',
+'MGI:6414594',
+'MGI:5312862',
+'MGI:4830769',
+'MGI:3653173',
+'MGI:5521544',
+'MGI:5448443',
+'MGI:5523279',
+'MGI:5312862',
+'MGI:4830769',
+'MGI:3712071',
+'MGI:4361923',
+'MGI:5312862',
+'MGI:4830769',
+'MGI:5297696',
+'MGI:5567826',
+'MGI:6414594',
+'MGI:5003460',
+'MGI:3721552',
+'MGI:5288490',
+'MGI:5003501',
+'MGI:5430308'
+'MGI:5297696',
+'MGI:3721552',
+'MGI:5430308',
+'MGI:4822407',
+'MGI:2388127',
+'MGI:5610007',
+'MGI:5634906',
+'MGI:3717464',
+'MGI:5521546',
+'MGI:4415690',
+'MGI:5288490',
+'MGI:6693445',
+'MGI:5487451',
+'MGI:6710974',
+'MGI:3036838',
+'MGI:3052475',
+'MGI:3805456',
+'MGI:2663960',
+'MGI:5527455'
+'MGI:5567826',
+'MGI:6693445',
+'MGI:5529093',
+'MGI:6377632',
+'MGI:6192446',
+'MGI:6403447',
+'MGI:5605719',
+'MGI:3623489',
+'MGI:3810360',
+'MGI:5757706',
+'MGI:3776094',
+'MGI:3776082'
+)
+)
+'''
 
 ###--- classes ---###
 
@@ -1392,15 +1368,20 @@ def _handleOtherSingles():
         # a transgene or a docking site, where that single marker may or may
         # not be the sole expressed component of itself.
 
-        _stamp('19:_handleOtherSingles/rule #7 : singles, no EC')
+        _stamp('19:_handleOtherSingles/rule #7 : singles, allele attribute "inserted expressed sequence" = false')
         _stamp('19:_handleOtherSingles/rule #8 : self-expressing single')
 
         # singles with no expressed components
         cmd1 = '''
                 insert into genotype_keepers
-                select s._Genotype_key, \'rule #7 : singles, no EC\', s._Marker_key, s.symbol, s.gaccid, s.maccid
+                select s._Genotype_key, \'rule #7 : singles, allele attribute "inserted expressed sequence" = false\', s._Marker_key, s.symbol, s.gaccid, s.maccid
                 from scratchpad s
-                where not exists (select 1 from has_expresses_component ct where s._Genotype_key = ct._Genotype_key)
+                -- allele attribute "inserted expressed sequence" = false
+                where not exists (select 1 from VOC_Annot b -- allele subtype annotation
+                                where b._AnnotType_key = 1014   
+                                and s._Allele_key = b._Object_key -- inserted expressed sequence
+                                and b._Term_key = 11025597     
+                                )
                 '''
 
         # singles where the marker knows how to express itself

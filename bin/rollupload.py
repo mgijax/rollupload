@@ -21,7 +21,7 @@ import rollupallelelib
 
 ###--- globals ---###
 
-DEBUG = False
+DEBUG = True
 
 # annotation formatted file
 annotFileName = None

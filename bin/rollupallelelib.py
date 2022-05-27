@@ -920,17 +920,13 @@ def _initialize():
         _indexKeepersTable()
 
         _buildScratchPad() 
-
         _identifyReporterTransgenes()
         _removeConditionalGenotypes()
         _removeReporterTransgenes()
-
         _identifyTransactivators()
         _removeTransactivators()
-
         _identifyWildTypeAlleles()
         _removeWildTypeAllelesFromScratchPad()
-
         _handleFinalAlleleSet()
         
         # At this point, genotype_keepers has the genotype/allele pairs where

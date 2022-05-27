@@ -750,7 +750,7 @@ def _handleFinalAlleleSet():
         before = _getCount('genotype_keepers')
         cmd = '''
                 insert into genotype_keepers
-                select distinct s._Genotype_key, \'rule # : remaining scratchpad/single allele\', s._Allele_key, s.symbol, a1.accid, a2.accid
+                select distinct s._Genotype_key, \'remaining scratchpad/single allele\', s._Allele_key, s.symbol, a1.accid, a2.accid
                 from scratchpad s,
                         ACC_Accession a1,
                         ACC_Accession a2

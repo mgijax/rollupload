@@ -34,7 +34,7 @@ import mgi_utils
 
 db.setTrace()
 Error = 'rollupallelelib.Error'
-DEBUG = True
+DEBUG = False
 
 MAX_ANNOTATIONS = 5000		# maximum number of annotations to cache in
 
@@ -66,34 +66,34 @@ PROPERTY_MAP = None		# KeyMap for property key -> property name
 # no testing
 testSQL = ""
 
-testSQL = '''
-and exists (select 1 from ACC_Accession testg 
-where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
-and testg.accid in (
-'MGI:3776488',
-'MGI:2667804',
-'MGI:2173405',
-'MGI:3799369',
-'MGI:3723214',
-'MGI:2665793',
-'MGI:3814544',
-'MGI:2678410',
-'MGI:5439284',
-'MGI:3836962',
-'MGI:3510920',
-'MGI:5897214',
-'MGI:5558945',
-'MGI:5882410',
-'MGI:3613531',
-'MGI:3837691',
-'MGI:3776520',
-'MGI:3698007',
-'MGI:3814907',
-'MGI:5690044',
-'MGI:6450805'
-)
-)
-'''
+#testSQL = '''
+#and exists (select 1 from ACC_Accession testg 
+#where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
+#and testg.accid in (
+#'MGI:3776488',
+#'MGI:2667804',
+#'MGI:2173405',
+#'MGI:3799369',
+#'MGI:3723214',
+#'MGI:2665793',
+#'MGI:3814544',
+#'MGI:2678410',
+#'MGI:5439284',
+#'MGI:3836962',
+#'MGI:3510920',
+#'MGI:5897214',
+#'MGI:5558945',
+#'MGI:5882410',
+#'MGI:3613531',
+#'MGI:3837691',
+#'MGI:3776520',
+#'MGI:3698007',
+#'MGI:3814907',
+#'MGI:5690044',
+#'MGI:6450805'
+#)
+#)
+#'''
 
 ###--- classes ---###
 

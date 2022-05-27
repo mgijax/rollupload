@@ -1,12 +1,28 @@
 # Purpose: to encapsulate the rollup rules for rolling up genotype-level
 #	MP and disease annotations to alleles, eliminating paths where we
 #	cannot determine a single causative allele.
-# Notes: We will want to carefully consider memory management in this module,
-#	as we are dealing with over 270,000 annotations for more than 60,000
-#	genotypes as of August 2014.  Add in evidence records and notes, and
-#	memory needs could be substantial.  Also, we'll really want to do most
-#	batch processing in SQL, rather than iterating in code (where possible)
-#	to reduce the number of repetitive SQL commands that would be needed.
+#
+# 05/27/2022    lec
+#       new; copied from rollupmarker.py
+#
+# initialize genotype_keepers (causitive allele)
+# 
+# 1. totally ignore MI, EC
+# 2. must have an MP annotation/DO annotation
+# 3. naturally simple genotypes
+#       only one allele
+#       isConditional = false
+#       wildtype = false
+# 
+# create scratchpad/remove from scratchpad:
+# 
+# 1. genotypes that are not in the genotype_keepers
+# 2. delete wildtype allele = true
+# 3. _identifyReporterTransgenes
+# 4. _identifyTransactivators
+# 5. _removeConditionalGenotypes
+# 6. delete if genotype has > 1 allele
+#
 
 import gc
 import os
@@ -113,8 +129,7 @@ class KeyMap:
 class Allele:
         # Is: a single allele from the database
         # Has: a allele key and sets of annotations, evidence, evidence
-        #	properties, and evidence notes that can be rolled up to that
-        #	allele.
+        #	properties, and evidence notes that can be rolled up to that allele.
         # Does: converts primary keys and annotation types so the data can
         #	be extracted from the object for loading into the database
         #	with no primary key conflicts
@@ -403,7 +418,7 @@ def _buildKeepersTable():
         # genotype's annotations.  Note that the table will not be populated
         # by this method.
 
-        _stamp('3:_buildKeepersTable')
+        _stamp('2:_buildKeepersTable')
 
         cmd = '''
                 create temp table genotype_keepers (
@@ -431,10 +446,10 @@ def _keepNaturallySimpleGenotypes():
         # 5. Ignore wild-type alleles
         #
 
-        _stamp('4:_keepNaturallySimpleGenotypes/genotype_keepers/rule #1 : one allele genotype')
-        _stamp('4.1:only one allele')
-        _stamp('4.2:isConditional = false')
-        _stamp('4.3:wildtype = false')
+        _stamp('3:_keepNaturallySimpleGenotypes/genotype_keepers/rule #1 : one allele genotype')
+        _stamp('3.1:only one allele')
+        _stamp('3.2:isConditional = false')
+        _stamp('3.3:wildtype = false')
 
         cmd = '''
                 insert into genotype_keepers
@@ -474,14 +489,14 @@ def _keepNaturallySimpleGenotypes():
                 '''
 
         db.sql(cmd, None)
-        _stamp('4:add naturally simple genotypes: %d\n' % _getCount('genotype_keepers'))
+        _stamp('3:add naturally simple genotypes: %d\n' % _getCount('genotype_keepers'))
         _addKeeper()
 
         return
 
 def _indexKeepersTable():
         # add relevant indexes to the genotype_keepers table
-        _stamp('5:_indexKeepersTable\n\n')
+        _stamp('4:_indexKeepersTable\n\n')
         db.sql('create index gk_genotype on genotype_keepers (_Genotype_key)', None)
         db.sql('create index gk_allele on genotype_keepers (_Allele_key, _Genotype_key)', None)
         return
@@ -493,10 +508,10 @@ def _identifyReporterTransgenes():
         #   2. allele subtype/attribute "Reporter" = true
         #   3. allele subtype/attribute no other selected
 
-        _stamp('7:_identifyReporterTransgenes/reporter_transgenes')
-        _stamp('7.1. allele type/generation type "Transgenic" = true')
-        _stamp('7.2. allele subtype/attribute "Reporter" = true')
-        _stamp('7.3. allele subtype/attribute no other subtype selected')
+        _stamp('6:_identifyReporterTransgenes/reporter_transgenes')
+        _stamp('6.1. allele type/generation type "Transgenic" = true')
+        _stamp('6.2. allele subtype/attribute "Reporter" = true')
+        _stamp('6.3. allele subtype/attribute no other subtype selected')
 
         cmd = '''
                 select distinct a._Allele_key
@@ -517,7 +532,7 @@ def _identifyReporterTransgenes():
 
         db.sql(cmd, None)
         db.sql('create unique index tmp_reportertg on reporter_transgenes (_Allele_key)', None)
-        _stamp('7:built reporter_transgenes table rows: %d\n' % _getCount('reporter_transgenes'))
+        _stamp('6:built reporter_transgenes table rows: %d\n' % _getCount('reporter_transgenes'))
 
         return
 
@@ -530,10 +545,10 @@ def _identifyTransactivators():
         # The "distinct" should be superfluous, but we'll include it just in
         # case something flaky comes up.
 
-        _stamp('10:_identifyTransactivators/transactivators')
-        _stamp('10.1: allele type/generation type "Transgenic" = true')
-        _stamp('10.2: allele subtype/attribute "Transactivator" = true')
-        _stamp('10.3: allele subtype/attribute "Inserted_expressed_sequence" = false')
+        _stamp('9:_identifyTransactivators/transactivators')
+        _stamp('9.1: allele type/generation type "Transgenic" = true')
+        _stamp('9.2: allele subtype/attribute "Transactivator" = true')
+        _stamp('9.3: allele subtype/attribute "Inserted_expressed_sequence" = false')
 
         cmd = '''
                 select distinct a._Allele_key
@@ -554,7 +569,7 @@ def _identifyTransactivators():
 
         db.sql(cmd, None)
         db.sql('create unique index tmp_transactivators on transactivators (_Allele_key)', None)
-        _stamp('10:built transactivators table rows: %d\n' % _getCount('transactivators'))
+        _stamp('9:built transactivators table rows: %d\n' % _getCount('transactivators'))
 
         return
 
@@ -564,9 +579,9 @@ def _buildScratchPad():
         # To begin, we'll collect a table of genotype/allele/allele data to
         # use as a scratch pad for further calculations.
 
-        _stamp('6:_buildScratchPad/scratchpad')
-        _stamp('6:exists in genotype_pair_counts')
-        _stamp('6:does not exist in genotype_keepers')
+        _stamp('5:_buildScratchPad/scratchpad')
+        _stamp('5:exists in genotype_pair_counts')
+        _stamp('5:does not exist in genotype_keepers')
 
         cmd = '''
                 select distinct gag._Genotype_key,
@@ -601,7 +616,7 @@ def _buildScratchPad():
 
         db.sql(cmd, None)
         db.sql('create index scratch_alleles on scratchpad (_Allele_key)', None)
-        _stamp('6:built scratchpad table rows: %d\n' % _getCount('scratchpad'))
+        _stamp('5:built scratchpad table rows: %d\n' % _getCount('scratchpad'))
         _deleteScratchpad()
 
         return
@@ -609,10 +624,10 @@ def _buildScratchPad():
 def _removeConditionalGenotypes():
         # If the genotype is conditional, then exclude recombinase alleles that do not have subtype = "Inserted expressed sequence"
 
-        _stamp('8:_removeConditionalGenotypes/scratchpad')
-        _stamp('8.1:isConditional = true')
-        _stamp('8.2:allele attribute Recombinase = true')
-        _stamp('8.3:allele attribute "inserted expressed sequence" = false')
+        _stamp('7:_removeConditionalGenotypes/scratchpad')
+        _stamp('7.1:isConditional = true')
+        _stamp('7.2:allele attribute Recombinase = true')
+        _stamp('7.3:allele attribute "inserted expressed sequence" = false')
 
         before = _getCount('scratchpad')
 
@@ -638,7 +653,7 @@ def _removeConditionalGenotypes():
                '''
 
         db.sql(cmd, None)
-        _stamp('8:delete recombinase alleles from scratchpad: %d\n' % (before - _getCount('scratchpad'))) 
+        _stamp('7:delete recombinase alleles from scratchpad: %d\n' % (before - _getCount('scratchpad'))) 
         _deleteScratchpad()
 
         return
@@ -667,12 +682,12 @@ def _cleanupTempTables():
 def _removeReporterTransgenes():
         # exclude reporter transgene alleles (allele type=Transgenic, allele subtype = "reporter" AND NOT "inserted expressed sequence")
 
-        _stamp('9:_removeReporterTransgenes/scratchpad')
-        _stamp('9:reporter_transgenes = true')
+        _stamp('8:_removeReporterTransgenes/scratchpad')
+        _stamp('8:reporter_transgenes = true')
         before = _getCount('scratchpad')
         #_stampResults('reporter_transgenes')
         db.sql('delete from scratchpad p where exists (select 1 from reporter_transgenes r where p._allele_key = r._allele_key)', None)
-        _stamp('9:delete reporter transgenes from scratchpad: %d\n' % (before - _getCount('scratchpad')))
+        _stamp('8:delete reporter transgenes from scratchpad: %d\n' % (before - _getCount('scratchpad')))
         _deleteScratchpad()
 
         return 
@@ -680,12 +695,12 @@ def _removeReporterTransgenes():
 def _removeTransactivators():
         # remove from the scratch pad any alleles which are transactivators (and are transgenic)
 
-        _stamp('11:_removeTransactivators/scratchpad')
-        _stamp('11:transactivators = true')
+        _stamp('10:_removeTransactivators/scratchpad')
+        _stamp('10:transactivators = true')
         #_stampResults('transactivators')
         before = _getCount('scratchpad')
         db.sql('delete from scratchpad p where exists (select 1 from transactivators t where p._allele_key = t._allele_key)', None)
-        _stamp('11:delete transactivators from scratchpad: %d\n' % ( before - _getCount('scratchpad')) )
+        _stamp('10:delete transactivators from scratchpad: %d\n' % ( before - _getCount('scratchpad')) )
         _deleteScratchpad()
 
         return 
@@ -693,8 +708,8 @@ def _removeTransactivators():
 def _identifyWildTypeAlleles():
         # Identify which remaining alleles are wild-type alleles and include them in a temp table.
 
-        _stamp('12:_identifyWildTypeAlleles/wildtype_alleles')
-        _stamp('12:isWildType = true')
+        _stamp('11:_identifyWildTypeAlleles/wildtype_alleles')
+        _stamp('11:isWildType = true')
 
         cmd = '''
                 select distinct p._Allele_key
@@ -705,19 +720,19 @@ def _identifyWildTypeAlleles():
 
         db.sql(cmd, None)
         db.sql('create unique index wt_alleles on wildtype_alleles (_Allele_key)', None)
-        _stamp('12:wildtype_alleles table rows: %d\n' % _getCount('wildtype_alleles'))
+        _stamp('11:wildtype_alleles table rows: %d\n' % _getCount('wildtype_alleles'))
 
         return
 
 def _removeWildTypeAllelesFromScratchPad():
         # Remove any remaining wild-type alleles.
 
-        _stamp('13:_removeWildTypeAllelesFromScratchPad/scratchpad')
-        _stamp('13:wildtype_alleles = true')
+        _stamp('12:_removeWildTypeAllelesFromScratchPad/scratchpad')
+        _stamp('12:wildtype_alleles = true')
         before = _getCount('scratchpad')
         _stampResults('wildtype_alleles')
         db.sql('delete from scratchpad p where exists (select 1 from wildtype_alleles w where p._allele_key = w._allele_key)', None)
-        _stamp('13:delete wild-type from scratchpad: %d\n' % ( before - _getCount('scratchpad')) )
+        _stamp('12:delete wild-type from scratchpad: %d\n' % ( before - _getCount('scratchpad')) )
         _deleteScratchpad()
 
         return
@@ -736,7 +751,7 @@ def _collectAlleleSets():
         # 1. trad - genotype-to-allele via the traditional allele-allele route
         # 2. trad_ct - genotype to count of its alleles in trad
 
-        _stamp('14:_collectAlleleSets')
+        _stamp('13:_collectAlleleSets')
 
         # command to build table 1 (distinct genotype/allele pairs)
 
@@ -779,8 +794,8 @@ def _collectAlleleSets():
                 db.sql(c4, None)
                 db.sql(c5, None)
 
-                _stamp('14:built table of %s genotype/allele pairs rows: %d' % (name, _getCount(tbl1)) )
-                _stamp('14:built table of %s genotype/allele counts rows: %d' % (name, _getCount(tbl2)) )
+                _stamp('13:built table of %s genotype/allele pairs rows: %d' % (name, _getCount(tbl1)) )
+                _stamp('13:built table of %s genotype/allele counts rows: %d' % (name, _getCount(tbl2)) )
 
                 if DEBUG:
                         results = db.sql('''
@@ -807,7 +822,7 @@ def _getAlleleMetaData():
 
         global ANNOTATION_COUNTS, ALLELE_KEYS, LAST_ALLELE_KEY_INDEX
 
-        _stamp('22:_getAlleleMetaData')
+        _stamp('14:_getAlleleMetaData')
 
         ANNOTATION_COUNTS = {}
         ALLELE_KEYS = []
@@ -834,7 +849,7 @@ def _getAlleleMetaData():
         ALLELE_KEYS = list(ANNOTATION_COUNTS.keys())
         ALLELE_KEYS.sort()
 
-        _stamp('22:Retrieved annotation counts for %d alleles\n' % len(ALLELE_KEYS)) 
+        _stamp('14:Retrieved annotation counts for %d alleles\n' % len(ALLELE_KEYS)) 
 
         return
 
@@ -845,7 +860,7 @@ def _initializeKeyMaps():
         global TERM_MAP, ALLELE_MAP, JNUM_MAP, EVIDENCE_MAP
         global QUALIFIER_MAP, USER_MAP, PROPERTY_MAP, CURRENT_ANNOT_TYPE
 
-        _stamp('23:_initializeKeyMaps')
+        _stamp('15:_initializeKeyMaps')
 
         if not CURRENT_ANNOT_TYPE:
                 raise Error('Need to call setAnnotationType()')
@@ -927,7 +942,7 @@ def _initializeKeyMaps():
                 ''' % os.environ['ANNOTPROPERTY']
         PROPERTY_MAP = KeyMap(propertyCmd, '_Term_key', 'term')
 
-        _stamp('23:Initialized 7 key maps\n')
+        _stamp('15:Initialized 7 key maps\n')
 
         return
 
@@ -1041,7 +1056,7 @@ def _getAnnotations (startAllele, endAllele):
         # the given 'startAllele' and 'endAllele', inclusive.  
         # Returns: { allele key : [ annotation rows ] }
 
-        _stamp('25:_getAnnotations')
+        _stamp('17:_getAnnotations')
 
         cmd = '''
                 select distinct k._Allele_key, a.*
@@ -1061,7 +1076,7 @@ def _getEvidence (startAllele, endAllele):
         # inclusive.
         # Returns: { _Annot_key : [ evidence rows ] }
 
-        _stamp('26:_getEvidence')
+        _stamp('18:_getEvidence')
 
         cmd = '''
                 select distinct k._Allele_key, e.*
@@ -1084,7 +1099,7 @@ def _getEvidenceProperties (startAllele, endAllele, rawEvidence):
         # between the given 'startAllele' and 'endAllele', inclusive.
         # Returns: { _AnnotEvidence_key : [ property rows ] }
 
-        _stamp('27:_getEvidenceProperties')
+        _stamp('19:_getEvidenceProperties')
 
         cmd = '''
                 select distinct k._Allele_key, e._Annot_key, p.*
@@ -1100,7 +1115,7 @@ def _getEvidenceProperties (startAllele, endAllele, rawEvidence):
                 ''' % ( CURRENT_ANNOT_TYPE, NO_PHENOTYPIC_ANALYSIS, startAllele, endAllele)
 
         properties = db.sql(cmd, 'auto')
-        _stamp('26:Retrieved properties: %d' % len(properties))
+        _stamp('19:Retrieved properties: %d' % len(properties))
 
         # need to go through the evidence records and add an extra property
         # for each one, to refer back to the _Annot_key of the annotation
@@ -1160,7 +1175,7 @@ def _getEvidenceProperties (startAllele, endAllele, rawEvidence):
                 byEvidenceKey[evidenceKey] = rows + seqRows
                 added = added + len(seqRows)
 
-        _stamp('27:add source key properties for records with existing properties: %d' % added)
+        _stamp('19:add source key properties for records with existing properties: %d' % added)
 
         # need to handle evidence rows which had no properties previously
 
@@ -1195,8 +1210,8 @@ def _getEvidenceProperties (startAllele, endAllele, rawEvidence):
                         evidenceAllelePairs[pair] = True
                         ct = ct + 1
 
-        _stamp('27:add source key properties for records with no existing properties: %d' % ct)
-        _stamp('27:add source key properties in all: %d' % len(byEvidenceKey))
+        _stamp('19:add source key properties for records with no existing properties: %d' % ct)
+        _stamp('19:add source key properties in all: %d' % len(byEvidenceKey))
 
         return byEvidenceKey
 
@@ -1207,7 +1222,7 @@ def _getNotes (startAllele, endAllele):
         # Returns: { _AnnotEvidence_key : { note key : { record from database } } }
         # handle basic data for each note
 
-        _stamp('28:_getNotes')
+        _stamp('20:_getNotes')
 
         # GENERAL_NOTE = 1008		# note type key for general notes for evidence
         # BACKGROUND_SENSITIVITY_NOTE = 1015	# note type key for background;sensitivity notes for evidence
@@ -1305,7 +1320,7 @@ def _getAlleles (startAllele, endAllele):
         # properties) for all alleles between (and including) the two given
         # allele keys
 
-        _stamp('24:_getAlleles')
+        _stamp('16:_getAlleles')
 
         # allele key -> list of annotation rows
         annotations = _getAnnotations(startAllele, endAllele)
@@ -1313,15 +1328,15 @@ def _getAlleles (startAllele, endAllele):
         # allele key -> annotation key -> evidence rows 
         evidenceResults, rawEvidence =_getEvidence(startAllele, endAllele)
         evidence = _splitByAllele(evidenceResults)
-        _stamp('24:returned rawEvidence rows: %d' % len(rawEvidence))
+        _stamp('16:returned rawEvidence rows: %d' % len(rawEvidence))
 
         # allele key -> evidence key -> property rows
         properties = _splitByAllele(_getEvidenceProperties(startAllele, endAllele, rawEvidence))
-        _stamp('24:received properties for alleles: %d' % len(properties))
+        _stamp('16:received properties for alleles: %d' % len(properties))
 
         # allele key -> evidence key -> note rows
         notes = _splitNotesByAllele(_getNotes(startAllele, endAllele))
-        _stamp('24:received notes for alleles: %d' % len(notes))
+        _stamp('16:received notes for alleles: %d' % len(notes))
 
         # Returns: { _AnnotEvidence_key : { note key : { record from database } } }
 

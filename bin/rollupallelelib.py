@@ -368,8 +368,8 @@ def _deleteScratchpad():
                 _stamp('after delete from scratchpad')
                 _stampResults('scratchpad', 'order by gaccid, aaccid')
 
-        # re-create genotype_pair_counts from scratchpad
-        _countAllelePairsPerGenotype('scratchpad')
+        # re-create genotype_allele_counts from scratchpad
+        _countAllelePerGenotype('scratchpad')
 
 def _getCount(table):
         results = db.sql('select count(1) as get_count from %s' % table, 'auto')
@@ -377,18 +377,18 @@ def _getCount(table):
                 return 0
         return results[0]['get_count']
 
-def _countAllelePairsPerGenotype(table):
-        # collect into a temp table (genotype_pair_counts) the genotypes that
+def _countAllelePerGenotype(table):
+        # collect into a temp table (genotype_allele_counts) the genotypes that
         # have annotations attached, along with the count of allele pairs for each genotype
 
-        _stamp('1:_countAllelePairsPerGenotype')
+        _stamp('1:_countAllelePerGenotype')
 
-        db.sql('drop table if exists genotype_pair_counts', None);
+        db.sql('drop table if exists genotype_allele_counts', None);
 
         if (table == 'GXD_AlleleGenotype'):
                 cmd = '''
-                        select gag._Genotype_key, count(1) as pair_count
-                        into temp table genotype_pair_counts
+                        select gag._Genotype_key, count(1) as allele_count
+                        into temp table genotype_allele_counts
                         from GXD_AlleleGenotype gag
                         where exists (select 1 from VOC_Annot v
                                 where v._AnnotType_key in (%d)
@@ -400,15 +400,15 @@ def _countAllelePairsPerGenotype(table):
                         ''' % (CURRENT_ANNOT_TYPE, NO_PHENOTYPIC_ANALYSIS, testSQL)
         else:
                 cmd = '''
-                        select gag._Genotype_key, count(1) as pair_count
-                        into temp table genotype_pair_counts
+                        select gag._Genotype_key, count(1) as allele_count
+                        into temp table genotype_allele_counts
                         from scratchpad gag
                         group by gag._Genotype_key
                         '''
 
         db.sql(cmd, None)
-        db.sql('create index tmp_by_count on genotype_pair_counts (pair_count, _Genotype_key)', None)
-        _stamp('1:genotype_pair_counts : %d\n' % _getCount('genotype_pair_counts'))
+        db.sql('create index tmp_by_count on genotype_allele_counts (allele_count, _Genotype_key)', None)
+        _stamp('1:genotype_allele_counts : %d\n' % _getCount('genotype_allele_counts'))
 
         return
 
@@ -456,13 +456,13 @@ def _keepNaturallySimpleGenotypes():
                 select distinct g._Genotype_key,
                         'rule #1 : one allele genotype',
                         p._Allele_key, a.symbol, a1.accid, a2.accid
-                from genotype_pair_counts g,
+                from genotype_allele_counts g,
                         GXD_AlleleGenotype p,
                         GXD_Genotype gg,
                         ALL_Allele a,
                         ACC_Accession a1,
                         ACC_Accession a2
-                where g.pair_count = 1
+                where g.allele_count = 1
                         and g._Genotype_key = p._Genotype_key
                         and p._Genotype_key = gg._Genotype_key
                         -- 4.2:isConditional = false
@@ -580,7 +580,7 @@ def _buildScratchPad():
         # use as a scratch pad for further calculations.
 
         _stamp('5:_buildScratchPad/scratchpad')
-        _stamp('5:exists in genotype_pair_counts')
+        _stamp('5:exists in genotype_allele_counts')
         _stamp('5:does not exist in genotype_keepers')
 
         cmd = '''
@@ -592,7 +592,7 @@ def _buildScratchPad():
                         a1.accid as gaccid,
                         a2.accid as aaccid
                 into temp table scratchpad
-                from genotype_pair_counts c,
+                from genotype_allele_counts c,
                         GXD_AlleleGenotype gag,
                         GXD_Genotype g,
                         ALL_Allele a,
@@ -662,7 +662,7 @@ def _cleanupTempTables():
         # drop any temp tables that we're done with
 
         tables = [ 
-                'genotype_pair_counts',
+                'genotype_allele_counts',
                 'genotype_keepers',
                 'reporter_transgenes',
                 'transactivators',
@@ -737,82 +737,36 @@ def _removeWildTypeAllelesFromScratchPad():
 
         return
 
-def _collectAlleleSets():
-        # builds several temp tables with alleles tied to genotypes by three
-        # routes:  traditional allele/allele pairings, expressed component
-        # relationships, and mutation involves relationships.  Note that the
-        # temp tables will only contain data for genotypes (and only through
-        # alleles) which still exist in scratchpad.  Also note that these
-        # only include genotypes which have annotations of the current
-        # annotation type.  Still another note -- we exclude genotypes where
-        # the only annotation is to 'no phenotypic analysis'.
+def _handleFinalAlleleSet():
+        # insert final scratchpad alleles into genotype_keepers
 
-        # The temp tables we will build include:
-        # 1. trad - genotype-to-allele via the traditional allele-allele route
-        # 2. trad_ct - genotype to count of its alleles in trad
+        _stamp('13:_handleFinalAlleleSet')
 
-        _stamp('13:_collectAlleleSets')
+        before = _getCount('scratchpad')
+        db.sql('delete from scratchpad where _Genotype_key in (select _Genotype_key from genotype_allele_counts where allele_count > 1)', None)
+        _stamp('13:delete multi-allele genotypes from scratchpad: %d\n' % ( before - _getCount('scratchpad')))
+        _deleteScratchpad()
 
-        # command to build table 1 (distinct genotype/allele pairs)
-
-        tradCmd = '''
-                select distinct s._Genotype_key, s._Allele_key
-                into temp table trad
-                from scratchpad s, ALL_Allele a
-                where s._Allele_key = a._Allele_key
-                '''
-
-        # commands to index tables 1-3
-
-        templateB = 'create index %s on %s (_Genotype_key)'
-
-        tradB = templateB % ('tradIndex1', 'trad')
-
-        # commands to build tables 4-6 (counts of distinct alleles/genotype)
-
-        templateC = '''select _Genotype_key, count(1) as allele_count into temp table %s from %s group by _Genotype_key'''
-
-        tradC = templateC % ('trad_ct', 'trad')
-
-        # commands to index tables 4-6
-
-        tradD = templateB % ('tradIndex2', 'trad_ct')
-        
-        templateE = 'create index %s on %s (allele_count)'
-
-        tradE = templateE % ('tradIndex3', 'trad_ct')
-
-        # build and index each table, and report on completion for profiling
-
-        for (name, tbl1, tbl2, c1, c2, c3, c4, c5) in [
-                ('traditional', 'trad', 'trad_ct', tradCmd, tradB, tradC, tradD, tradE)
-                ]:
-
-                db.sql(c1, None)
-                db.sql(c2, None)
-                db.sql(c3, None)
-                db.sql(c4, None)
-                db.sql(c5, None)
-
-                _stamp('13:built table of %s genotype/allele pairs rows: %d' % (name, _getCount(tbl1)) )
-                _stamp('13:built table of %s genotype/allele counts rows: %d' % (name, _getCount(tbl2)) )
-
-                if DEBUG:
-                        results = db.sql('''
-                                select ac.accid, a.symbol, t.* 
-                                from %s t, ALL_Allele a, ACC_Accession ac
-                                where t._Allele_key = a._Allele_key
-                                and a._Allele_key = ac._Object_key
-                                and ac._MGIType_key = 11
-                                and ac._logicaldb_key = 1
-                                and ac.prefixpart = 'MGI:'
-                                and ac.preferred = 1
-                                order by ac.accid
-                                ''' % (tbl1), 'auto')
-                        for r in results:
-                                _stamp(r)
-         
-                _stamp('\n')
+        before = _getCount('genotype_keepers')
+        cmd = '''
+                insert into genotype_keepers
+                select distinct s._Genotype_key, \'rule # : remaining scratchpad/single allele\', s._Allele_key, s.symbol, a1.accid, a2.accid
+                from scratchpad s,
+                        ACC_Accession a1,
+                        ACC_Accession a2
+                where s._Genotype_key = a1._Object_key
+                        and a1._MGIType_key = 12
+                        and a1._logicaldb_key = 1
+                        and a1.prefixpart = 'MGI:'
+                        and s._Allele_key = a2._Object_key
+                        and a2._MGIType_key = 11
+                        and a2.prefixpart = 'MGI:'
+                        and a2._logicaldb_key = 1
+                        and a2.preferred = 1
+                 '''
+        db.sql(cmd, None)
+        _stamp('13:add rows to genotype_keepers: %d' % (_getCount('genotype_keepers') - before))
+        _addKeeper()
 
         return
 
@@ -959,7 +913,7 @@ def _initialize():
         db.useOneConnection(1)
         #_cleanupTempTables()
 
-        _countAllelePairsPerGenotype('GXD_AlleleGenotype')
+        _countAllelePerGenotype('GXD_AlleleGenotype')
 
         _buildKeepersTable()
         _keepNaturallySimpleGenotypes()
@@ -977,8 +931,8 @@ def _initialize():
         _identifyWildTypeAlleles()
         _removeWildTypeAllelesFromScratchPad()
 
-        _collectAlleleSets()
-
+        _handleFinalAlleleSet()
+        
         # At this point, genotype_keepers has the genotype/allele pairs where
         # we can definitively identify a causative allele for a genotype's
         # MP/disease annotations.

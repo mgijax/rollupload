@@ -852,18 +852,18 @@ def _initializeKeyMaps():
 
         # map from annotated term IDs to their IDs
         if DEBUG:
-                accID = "aa.accID || ':' || t.term as accID"
+                accID = "ac.accID || ':' || t.term as accID"
         else:
-                accID = "aa.accID as accID"
+                accID = "ac.accID as accID"
 
         termCmd = '''
-                select distinct aa._Object_key, %s
-                from VOC_Annot va, ACC_Accession aa, VOC_Term t
+                select distinct ac._Object_key, %s
+                from VOC_Annot va, ACC_Accession ac, VOC_Term t
                 where va._AnnotType_key in (%d)
-                and va._Term_key = aa._Object_key
-                and aa._MGIType_key = 13
-                and aa.private = 0
-                and aa.preferred = 1
+                and va._Term_key = ac._Object_key
+                and ac._MGIType_key = 13
+                and ac.private = 0
+                and ac.preferred = 1
                 and va._Term_key = t._Term_key
                 ''' % (accID, CURRENT_ANNOT_TYPE)
         TERM_MAP = KeyMap(termCmd, '_Object_key', 'accID')
@@ -875,7 +875,7 @@ def _initializeKeyMaps():
                 accID = "ac.accID as accID"
 
         alleleCmd = '''
-                select distinct aa._Object_key, %s
+                select distinct ac._Object_key, %s
                 from genotype_keepers k, ACC_Accession ac, ALL_Allele a
                 where k._Allele_key = ac._Object_key
                         and ac._MGIType_key = 11

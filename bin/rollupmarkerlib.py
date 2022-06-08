@@ -56,7 +56,6 @@ PROPERTY_MAP = None		# KeyMap for property key -> property name
 # no testing
 testSQL = ""
 
-# rule #1/crm159
 #testSQL = '''
 #and exists (select 1 from ACC_Accession testg 
 #where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
@@ -65,12 +64,11 @@ testSQL = ""
 #'MGI:2173405',
 #'MGI:3776495',
 #'MGI:5449569',
-#'MGI:5293787',
 #'MGI:4948663',
 #'MGI:5297696',
 #'MGI:3720108',
 #'MGI:6414594',
-#'MGI:5567826'
+#'MGI:5567826',
 #'MGI:4948663',
 #'MGI:5439284',
 #'MGI:6294154',
@@ -95,7 +93,7 @@ testSQL = ""
 #'MGI:3721552',
 #'MGI:5288490',
 #'MGI:5003501',
-#'MGI:5430308'
+#'MGI:5430308',
 #'MGI:5297696',
 #'MGI:3721552',
 #'MGI:5430308',
@@ -114,7 +112,7 @@ testSQL = ""
 #'MGI:3052475',
 #'MGI:3805456',
 #'MGI:2663960',
-#'MGI:5527455'
+#'MGI:5527455',
 #'MGI:5567826',
 #'MGI:6693445',
 #'MGI:5529093',
@@ -126,7 +124,10 @@ testSQL = ""
 #'MGI:3810360',
 #'MGI:5757706',
 #'MGI:3776094',
-#'MGI:3776082'
+#'MGI:3776082',
+##'MGI:5610007',
+#'MGI:6696142',
+#'MGI:3771565'
 #)
 #)
 #'''
@@ -1104,6 +1105,13 @@ def _handleMutationInvolves():
                                 and m._Marker_Type_key in (3,10)
                                 )
                         )
+
+                        -- allele attribute "inserted expressed sequence" = false
+                        and not exists (select 1 from VOC_Annot b -- allele subtype annotation
+                                where b._AnnotType_key = 1014   
+                                and s._Allele_key = b._Object_key -- inserted expressed sequence
+                                and b._Term_key = 11025597     
+                        )
                 '''
 
         db.sql(cmd, None)
@@ -1114,6 +1122,7 @@ def _handleMutationInvolves():
         _stamp('16:2:the genotype has at least 1 mutation involves marker in (I)')
         _stamp('16:3:marker (M) feature type = heritable phenotypic marker, enhancer, silencer, imprinting control region, locus control region, promoter')
         _stamp('16:3:OR marker type = complex/cluster/region) OR cytogenetic marker')
+        _stamp('16.4:allele attribute "Inserted_expressed_sequence" = false')
 
         if DEBUG:
                 _stamp('\nmi1')
@@ -1137,6 +1146,13 @@ def _handleMutationInvolves():
                                 where s._Marker_key = m._Marker_key
                                 and m._Marker_Type_key in (12)
                         )
+
+                        -- allele attribute "inserted expressed sequence" = false
+                        and not exists (select 1 from VOC_Annot b -- allele subtype annotation
+                                where b._AnnotType_key = 1014   
+                                and s._Allele_key = b._Object_key -- inserted expressed sequence
+                                and b._Term_key = 11025597     
+                        )
                 union
                 select distinct s.gaccid, s.maccid, s._Genotype_key, mi._Marker_key, mi.symbol
                 from genotype_pair_counts c, scratchpad s, has_mutation_involves mi
@@ -1149,12 +1165,20 @@ def _handleMutationInvolves():
                                 where s._Marker_key = m._Marker_key
                                 and m._Marker_Type_key in (12)
                         )
+
+                        -- allele attribute "inserted expressed sequence" = false
+                        and not exists (select 1 from VOC_Annot b -- allele subtype annotation
+                                where b._AnnotType_key = 1014   
+                                and s._Allele_key = b._Object_key -- inserted expressed sequence
+                                and b._Term_key = 11025597     
+                        )
                 '''
         _stamp('16:add rows to mi2 rule#3/Transgene clause')
         _stamp('16:1:the genotype has exactly 1 marker in (M)')
         _stamp('16:2:the genotype has exactly 1 mutation involves marker in (I)')
         _stamp('16:3:marker type = Transgene (12)')
-        _stamp('16:4:rollup to both marker in (M) and marker in (I)')
+        _stamp('16.4:allele attribute "Inserted_expressed_sequence" = false')
+        _stamp('16:5:rollup to both marker in (M) and marker in (I)')
         db.sql(cmd, None)
         db.sql('create index mi2_1 on mi2 (_Genotype_key)', None)
         db.sql('create index mi2_2 on mi2 (_Marker_key)', None)
@@ -1182,12 +1206,21 @@ def _handleMutationInvolves():
                                 where s._Marker_key = m._Marker_key
                                 and m._Marker_key in (%s)
                         )
+
+                        -- allele attribute "inserted expressed sequence" = false
+                        and not exists (select 1 from VOC_Annot b -- allele subtype annotation
+                                where b._AnnotType_key = 1014   
+                                and s._Allele_key = b._Object_key -- inserted expressed sequence
+                                and b._Term_key = 11025597     
+                        )
                 ''' % (docking_sites)
 
         _stamp('16:add rows to mi3 rule#3/Docking Site clause')
         _stamp('16:1:the genotype has exactly 1 marker')
         _stamp('16:2:the marker is Docking Site (Col1a1, Gt(ROSA)26Sor, Hprt)')
         _stamp('16:3:the genotype has exactly 1 mutation involves marker in (I)')
+        _stamp('16.4:allele attribute "Inserted_expressed_sequence" = false')
+        _stamp('16:5:rollup to both marker in (M) and marker in (I)')
         db.sql(cmd, None)
         db.sql('create index mi3_1 on mi3 (_Genotype_key)', None)
         db.sql('create index mi3_2 on mi3 (_Marker_key)', None)

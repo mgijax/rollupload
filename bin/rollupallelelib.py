@@ -42,7 +42,6 @@ CURRENT_ANNOT_TYPE = None	# either DO_GENOTYPE or MP_GENOTYPE
 DO_GENOTYPE = 1020		# DO/Genotype annotation type
 MP_GENOTYPE = 1002		# Mammalian Phenotype/Genotype annotation type
 
-NO_PHENOTYPIC_ANALYSIS = 293594	# term key for 'no phenotypic analysis' term
 SOURCE_ANNOT_KEY = None		# term key for _SourceAnnot_key property
 
 INITIALIZED = False		# have we finished initializing this module?
@@ -241,10 +240,6 @@ class Allele:
                 for annotRow in self.annotations:
                         annotKey = annotRow['_Annot_key']
 
-                        if annotRow['_Term_key'] == NO_PHENOTYPIC_ANALYSIS:
-                                # skip annotations to this term
-                                continue
-
                         termID = TERM_MAP.get(annotRow['_Term_key'])
                         alleleID = ALLELE_MAP.get(annotRow['_Allele_key'])
                         qualifier = QUALIFIER_MAP.get( annotRow['_Qualifier_key'])
@@ -392,12 +387,11 @@ def _countAllelePerGenotype(table):
                         from GXD_AlleleGenotype gag
                         where exists (select 1 from VOC_Annot v
                                 where v._AnnotType_key in (%d)
-                                and v._Term_key != %d
                                 and v._Object_key = gag._Genotype_key
                                 )
                         %s
                         group by gag._Genotype_key
-                        ''' % (CURRENT_ANNOT_TYPE, NO_PHENOTYPIC_ANALYSIS, testSQL)
+                        ''' % (CURRENT_ANNOT_TYPE, testSQL)
         else:
                 cmd = '''
                         select gag._Genotype_key, count(1) as allele_count
@@ -787,9 +781,8 @@ def _getAlleleMetaData():
                 from genotype_keepers k, VOC_Annot a
                 where k._Genotype_key = a._Object_key
                 and a._AnnotType_key in (%s)
-                and a._Term_key != %d
                 group by k._Allele_key
-                ''' % (CURRENT_ANNOT_TYPE, NO_PHENOTYPIC_ANALYSIS)
+                ''' % (CURRENT_ANNOT_TYPE)
 
         results = db.sql(cmd, 'auto')
         for row in results:
@@ -1013,10 +1006,9 @@ def _getAnnotations (startAllele, endAllele):
                 from genotype_keepers k, VOC_Annot a
                 where k._Genotype_key = a._Object_key
                 and a._AnnotType_key in (%d)
-                and a._Term_key != %d
                 and k._Allele_key >= %d
                 and k._Allele_key <= %d
-                ''' % ( CURRENT_ANNOT_TYPE, NO_PHENOTYPIC_ANALYSIS, startAllele, endAllele)
+                ''' % ( CURRENT_ANNOT_TYPE, startAllele, endAllele)
 
         return _makeDictionary (db.sql(cmd, 'auto'), '_Allele_key')
 
@@ -1033,11 +1025,10 @@ def _getEvidence (startAllele, endAllele):
                 from genotype_keepers k, VOC_Annot a, VOC_Evidence e
                 where k._Genotype_key = a._Object_key
                 and a._AnnotType_key in (%d)
-                and a._Term_key != %d
                 and k._Allele_key >= %d
                 and k._Allele_key <= %d
                 and a._Annot_key = e._Annot_key
-                ''' % (CURRENT_ANNOT_TYPE, NO_PHENOTYPIC_ANALYSIS, startAllele, endAllele)
+                ''' % (CURRENT_ANNOT_TYPE, startAllele, endAllele)
 
         results = db.sql(cmd, 'auto')
 
@@ -1056,13 +1047,12 @@ def _getEvidenceProperties (startAllele, endAllele, rawEvidence):
                 from genotype_keepers k, VOC_Annot a, VOC_Evidence e, VOC_Evidence_Property p
                 where k._Genotype_key = a._Object_key
                 and a._AnnotType_key in (%d)
-                and a._Term_key != %d
                 and k._Allele_key >= %d
                 and k._Allele_key <= %d
                 and a._Annot_key = e._Annot_key
                 and e._AnnotEvidence_key = p._AnnotEvidence_key
                 order by p._AnnotEvidence_key, p.stanza, p.sequenceNum
-                ''' % ( CURRENT_ANNOT_TYPE, NO_PHENOTYPIC_ANALYSIS, startAllele, endAllele)
+                ''' % ( CURRENT_ANNOT_TYPE, startAllele, endAllele)
 
         properties = db.sql(cmd, 'auto')
         _stamp('19:Retrieved properties: %d' % len(properties))
@@ -1185,16 +1175,12 @@ def _getNotes (startAllele, endAllele):
                         MGI_Note n
                 where k._Genotype_key = a._Object_key
                         and a._AnnotType_key in (%d)
-                        and a._Term_key != %d
                         and k._Allele_key >= %d
                         and k._Allele_key <= %d
                         and a._Annot_key = e._Annot_key
                         and e._AnnotEvidence_key = n._Object_key
                         and n._NoteType_key in (1008, 1015)             -- general note/background;sensitivity note
-                order by n._Object_key''' % (
-                        CURRENT_ANNOT_TYPE, NO_PHENOTYPIC_ANALYSIS,
-                        startAllele, endAllele,
-                        )
+                order by n._Object_key''' % (CURRENT_ANNOT_TYPE, startAllele, endAllele)
 
         results = db.sql(cmd, 'auto')
 

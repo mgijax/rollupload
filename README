@@ -1,0 +1,57 @@
+#
+# Testing procedures:
+#
+# Purpose:  
+# to provide info in the diagnostic file for Sue
+# to determine that the proper info is being "rolled up"
+# and appearing in the "built" area.
+#
+# All of the "rules" are numbered and consistent with the rollupload wiki
+# Sue&SE communicate via the rule# to determine which logic needs
+# to be tested; isn't working propertly, etc.
+#
+# 1. set DEBUG = True
+#       rollupallelelib.py
+#       rollupmarkerlib.py
+#       rollupload.py
+#
+# 2. testSQL:  add Genotypes (MGI:xxx) examples
+#       which are provided by Sue and should be in the WTS2 ticket
+#
+# 3. rollupload.sh:
+#       comment out the section you don't want to test
+#               Running rollupload.py diseaseMarker
+#               Running rollupload.py mpMarker
+#
+#               Running rollupload.py diseaseAllele
+#               Running rollupload.py mpAllele
+#
+#       comment out the Annotations until step 9/10:
+#               Running disease rollupload annotation load
+#               Running MP rollupload annotation load
+#               Running disease rollupload annotation load
+#               Running MP rollupload annotation load
+#
+# 4. run: rollupload.sh
+#
+# 5. check logs/rollupload.diag.log; send to Sue
+#
+# 6. tweak rollupallelelib.py and/or rollupmarkerlib.py as needed
+#
+# 7. repeat 4-6
+#
+# 8. set DEBUG = False ; else the Annotations will not load properly
+#
+# 9. remove commented out rollupload.sh
+#
+# 10. run full rollupload.sh
+#
+# 11. install rollupload on Scrum; run rollupload.sh; check
+#
+# 12. make mgi-testdb4/scrumdog backup
+#
+# 13. run Scrum/FEWI pipeline
+#
+# 14. send to Sue
+#
+

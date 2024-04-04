@@ -61,8 +61,7 @@ def processCommandLine():
         try:
                 db.sql('select count(1) from MGI_dbInfo', 'auto')
         except:
-                bailout('Cannot query database %s..%s' % (sys.argv[1],
-                        sys.argv[2]))
+                bailout('Cannot query database %s..%s' % (sys.argv[1], sys.argv[2]))
         return
 
 def getDerivedAnnotationKeys():
@@ -103,10 +102,6 @@ def flatten (rows, fields):
         items = []
         for row in rows:
                 s = ''
-                if 'property' in row and \
-                        row['property'] == '_SourceAnnot_key':
-                        continue
-
                 for field in fields:
                         s = s + '||' + str(row[field])
                 items.append(s)
@@ -133,8 +128,7 @@ class Annotation:
         def addRow(self, rowType, row):
                 if rowType == ANNOTATION:
                         if self.annotationRow:
-                                bailout('Two annotation rows for annotKey %d' \
-                                        % self.annotKey)
+                                bailout('Two annotation rows for annotKey %d' % self.annotKey)
                         self.annotationRow = row
                 elif rowType == EVIDENCE:
                         self.evidenceRows.append(row)
@@ -208,7 +202,8 @@ def loadAnnotations(annotKeys):
                 return {}
 
         # basic annotation data
-        cmd1 = '''select va._Annot_key, vat.name as annotation_type,
+        cmd1 = '''
+                select va._Annot_key, vat.name as annotation_type,
                         t.term, q.term as qualifier, va.creation_date,
                         va.modification_date
                 from voc_annot va, voc_annottype vat, voc_term t,
@@ -217,10 +212,12 @@ def loadAnnotations(annotKeys):
                         and va._AnnotType_key = vat._AnnotType_key
                         and va._Term_key = t._Term_key
                         and va._Qualifier_key = q._Term_key
-                order by va._Annot_key, vat.name, t.term''' % keyString
+                order by va._Annot_key, vat.name, t.term
+                ''' % keyString
 
         # evidence rows
-        cmd2 = '''select ve._Annot_key, ve._AnnotEvidence_key,
+        cmd2 = '''
+                select ve._Annot_key, ve._AnnotEvidence_key,
                         e.abbreviation as evidence, c.jnumID,
                         ve.inferredFrom, cu.login as created_by,
                         mu.login as modified_by, c.numericPart
@@ -231,11 +228,12 @@ def loadAnnotations(annotKeys):
                         and ve._CreatedBy_key = cu._User_key
                         and ve._ModifiedBy_key = mu._User_key
                         and ve._Refs_key = c._Refs_key
-                order by ve._Annot_key, ve._AnnotEvidence_key, e.abbreviation,
-                        c.numericPart''' % keyString
+                order by ve._Annot_key, ve._AnnotEvidence_key, e.abbreviation, c.numericPart
+                ''' % keyString
 
         # property rows
-        cmd3 = '''select ve._Annot_key, vep._AnnotEvidence_key,
+        cmd3 = '''
+                select ve._Annot_key, vep._AnnotEvidence_key,
                         p.term as property, 
                         vep.stanza, vep.sequenceNum, vep.value,
                         cu.login as created_by, mu.login as modified_by
@@ -248,18 +246,20 @@ def loadAnnotations(annotKeys):
                         and p.term = '_SourceAnnot_key'
                         and vep._CreatedBy_key = cu._User_key
                         and vep._ModifiedBy_key = mu._User_key
-                order by vep._AnnotEvidence_key, vep.sequenceNum''' % keyString
+                order by vep._AnnotEvidence_key, vep.sequenceNum
+                ''' % keyString
 
         # note rows
-        cmd4 = '''select ve._Annot_key, t.noteType, t.private, n.note,
-                        c.sequenceNum, ve._AnnotEvidence_key
+        cmd4 = '''
+                select ve._Annot_key, t.noteType, t.private, n.note, ve._AnnotEvidence_key
                 from voc_evidence ve, mgi_note n, mgi_notetype t
                 where ve._Annot_key in (%s)
                         and ve._AnnotEvidence_key = n._Object_key
                         and t._NoteType_key = n._NoteType_key
                         and t._NoteType_key in (1008, 1015)
                         and t._MGIType_key = 25
-                order by ve._Annot_key, ve._AnnotEvidence_key, t.noteType''' % keyString
+                order by ve._Annot_key, ve._AnnotEvidence_key, t.noteType
+                ''' % keyString
 
         annotations = {}
 
@@ -274,8 +274,7 @@ def loadAnnotations(annotKeys):
 
                 annot.addRow(ANNOTATION, row)
         
-        debug('Got %d annotations from %d-%d' % (len(annotations), annotKeys[0],
-                annotKeys[-1]))
+        debug('Got %d annotations from %d-%d' % (len(annotations), annotKeys[0], annotKeys[-1]))
 
         to_do = [ (cmd2, EVIDENCE), (cmd3, PROPERTY), (cmd4, NOTE) ]
 
@@ -285,14 +284,12 @@ def loadAnnotations(annotKeys):
                         annotKey = row['_Annot_key']
 
                         if annotKey not in annotations:
-                                bailout('Unknown annot key %d (in %s)' % (
-                                        annotKey, dataType))
+                                bailout('Unknown annot key %d (in %s)' % ( annotKey, dataType))
 
                         annot = annotations[annotKey]
                         annot.addRow(dataType, row)
 
-                debug('Got %d %s rows for annotations %d-%d' % (
-                        len(rows), dataType, annotKeys[0], annotKeys[-1]))
+                debug('Got %d %s rows for annotations %d-%d' % ( len(rows), dataType, annotKeys[0], annotKeys[-1]))
 
         return annotations
 
@@ -379,3 +376,4 @@ def main():
 
 if __name__ == '__main__':
         main()
+

@@ -42,16 +42,21 @@
 #
 # 8. set DEBUG = False ; else the Annotations will not load properly
 #
-# 9. remove commented out rollupload.sh
+# 9. rollupload.sh: remove commented out sections
 #
-# 10. run full rollupload.sh
+# 10. rollupload.sh: turn on rollup_check.py
 #
-# 11. install rollupload on Scrum; run rollupload.sh; check
+# 11. run full rollupload.sh
 #
-# 12. make mgi-testdb4/scrumdog backup
+# 12. install rollupload on Scrum; run rollupload.sh; check
 #
-# 13. run Scrum/FEWI pipeline
+# 13. make mgi-testdb4/scrumdog backup
 #
-# 14. send to Sue
+# 14. run Scrum/FEWI pipeline
 #
-
+# 15. send to Sue
+#
+# 16. if making a tag:
+#       make sure all DEBUG = False
+#       rollupload.sh: turn on rollup_check.py
+#

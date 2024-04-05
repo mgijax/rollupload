@@ -187,6 +187,14 @@ STAT=$?
 checkStatus ${STAT} "${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} mpAllele"
 
 #
+# run check
+#
+echo "Running checker" >> ${LOG_DIAG}
+cd ${OUTPUTDIR}
+${PYTHON} ${ROLLUPLOAD}/bin/rollup_check.py ${MGD_DBSERVER} ${MGD_DBNAME} >> ${LOG_DIAG} 2>&1
+STAT=$?
+
+#
 # run postload cleanup and email logs
 #
 shutDown

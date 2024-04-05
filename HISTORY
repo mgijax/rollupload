@@ -1,3 +1,21 @@
+# 
+# See README for testing instructions
+#
+#
+TAG: rollupload-6-0-23-?
+DATE: 04/02/2024
+STAFF: lec
+wts2-1452/Modify Roll up rules to include expressed non-mouse genes
+#       modified:   README
+#       modified:   bin/rollupallelelib.py
+#       modified:   bin/rollupload.py
+#       modified:   bin/rollupload.sh
+#       modified:   bin/rollupmarkerlib.py
+#
+this term is obsolete
+from: _RelationshipTerm_key = 12965808 -- expresses_mouse_gene
+to  : _RelationshipTerm_key = 12438346 -- expresses_component
+
 TAG: rollupload-6-0-22-1
 TAG: rollupload-6-0-19-3
 DATE: 09/08/2023

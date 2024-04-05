@@ -1,13 +1,7 @@
-
+#
 # Name: rollupload.py
 #
-# Inputs:
-#
-# Outputs:
-#
-# Report:
-# 
-# Usage:
+# see the README file for testing instructions
 #
 # History:
 #

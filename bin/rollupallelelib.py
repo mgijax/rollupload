@@ -23,6 +23,8 @@
 # 5. _removeConditionalGenotypes
 # 6. delete if genotype has > 1 allele
 #
+# see the README file for testing instructions
+#
 
 import gc
 import os

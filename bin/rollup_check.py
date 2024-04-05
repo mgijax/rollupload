@@ -102,6 +102,7 @@ def flatten (rows, fields):
         items = []
         for row in rows:
                 s = ''
+                #print(row)
                 for field in fields:
                         s = s + '||' + str(row[field])
                 items.append(s)

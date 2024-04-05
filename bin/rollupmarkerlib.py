@@ -7,6 +7,9 @@
 #	memory needs could be substantial.  Also, we'll really want to do most
 #	batch processing in SQL, rather than iterating in code (where possible)
 #	to reduce the number of repetitive SQL commands that would be needed.
+#
+# see the README file for testing instructions
+#
 
 import gc
 import os
@@ -60,74 +63,15 @@ testSQL = ""
 #and exists (select 1 from ACC_Accession testg 
 #where gag._genotype_key = testg._object_key and testg._mgitype_key = 12 
 #and testg.accid in (
-#'MGI:4946295',
-#'MGI:2173405',
-#'MGI:3776495',
-#'MGI:5449569',
-#'MGI:4948663',
-#'MGI:5297696',
-#'MGI:3720108',
-#'MGI:6414594',
-#'MGI:5567826',
-#'MGI:4948663',
-#'MGI:5439284',
-#'MGI:6294154',
-#'MGI:5755142',
-#'MGI:6414594',
-#'MGI:5312862',
-#'MGI:4830769',
-#'MGI:3653173',
-#'MGI:5521544',
-#'MGI:5448443',
-#'MGI:5523279',
-#'MGI:5312862',
-#'MGI:4830769',
-#'MGI:3712071',
-#'MGI:4361923',
-#'MGI:5312862',
-#'MGI:4830769',
-#'MGI:5297696',
-#'MGI:5567826',
-#'MGI:6414594',
-#'MGI:5003460',
-#'MGI:3721552',
-#'MGI:5288490',
-#'MGI:5003501',
-#'MGI:5430308',
-#'MGI:5297696',
-#'MGI:3721552',
-#'MGI:5430308',
-#'MGI:4822407',
-#'MGI:2388127',
-#'MGI:5610007',
-#'MGI:5634906',
-#'MGI:3717464',
-#'MGI:5521546',
-#'MGI:4415690',
-#'MGI:5288490',
-#'MGI:6693445',
-#'MGI:5487451',
-#'MGI:6710974',
-#'MGI:3036838',
-#'MGI:3052475',
-#'MGI:3805456',
-#'MGI:2663960',
+#'MGI:3811643',
+#'MGI:3794207',
+#'MGI:6402641',
+#'MGI:5140086',
+#'MGI:6256822',
+#'MGI:3797085',
+#'MGI:4430413',
 #'MGI:5527455',
-#'MGI:5567826',
-#'MGI:6693445',
-#'MGI:5529093',
-#'MGI:6377632',
-#'MGI:6192446',
-#'MGI:6403447',
-#'MGI:5605719',
-#'MGI:3623489',
-#'MGI:3810360',
-#'MGI:5757706',
-#'MGI:3776094',
-#'MGI:3776082',
-##'MGI:5610007',
-#'MGI:6696142',
-#'MGI:3771565'
+#'MGI:3842750'
 #)
 #)
 #'''
@@ -453,7 +397,7 @@ def _identifyMutationInvolves():
         _stamp('1a:_identifyMutationInvolves/has_mutation_involves')
 
         cmd = '''
-                select distinct aa.accid, gag._Genotype_key, gag._Allele_key, mr._Object_key_2 as _Marker_key, m.symbol
+                select distinct aa.accid, gag._Genotype_key, gag._Allele_key, mr._Object_key_2 as _Marker_key, m._Organism_key, m.symbol
                 into temp table has_mutation_involves
                 from VOC_Annot a, GXD_AlleleGenotype gag, MGI_Relationship mr, ACC_Accession aa, MRK_Marker m
                 where a._AnnotType_key = %d
@@ -526,6 +470,7 @@ def _buildKeepersTable():
                         _Genotype_key int not null,
                         genotype_type text null,
                         _Marker_key int null,
+                        _Organism_key int null,
                         symbol text null,
                         gaccid text not null,
                         maccid text not null
@@ -560,7 +505,7 @@ def _keepNaturallySimpleGenotypes():
                 insert into genotype_keepers
                 select distinct g._Genotype_key,
                         'rule #1 : one marker genotype',
-                        p._Marker_key, m.symbol, a1.accid, a2.accid
+                        p._Marker_key, m._Organism_key, m.symbol, a1.accid, a2.accid
                 from genotype_pair_counts g,
                         GXD_AlleleGenotype p,
                         GXD_Genotype gg,
@@ -703,6 +648,7 @@ def _buildScratchPad():
                         gag._Marker_key,
                         gag._Allele_key,
                         g.isConditional,
+                        m._Organism_key,
                         m.symbol,
                         a1.accid as gaccid,
                         a2.accid as maccid
@@ -904,7 +850,7 @@ def _collectMarkerSets():
         # there are special cases down the road which require mouse-only.
 
         ecCmd = '''
-                select distinct s._Genotype_key, mr._Object_key_2 as _Marker_key, m._Organism_key, mr._RelationshipTerm_key
+                select distinct s._Genotype_key, mr._Object_key_2 as _Marker_key, m.symbol, m._Organism_key, mr._RelationshipTerm_key
                 into temp table ec
                 from scratchpad s, MGI_Relationship mr, MRK_Marker m
                 where s._Allele_key = mr._Object_key_1
@@ -962,13 +908,22 @@ def _collectMarkerSets():
                                 select a.accid, m.symbol, t.* 
                                 from %s t, MRK_Marker m, ACC_Accession a
                                 where t._Marker_key = m._Marker_key
+                                and m._Organism_key = 1
                                 and m._Marker_key = a._Object_key
                                 and a._MGIType_key = 2
                                 and a._logicaldb_key = 1
                                 and a.prefixpart = 'MGI:'
                                 and a.preferred = 1
-                                order by a.accid
-                                ''' % (tbl1), 'auto')
+                                union
+                                select a.accid, m.symbol, t.* 
+                                from %s t, MRK_Marker m, ACC_Accession a
+                                where t._Marker_key = m._Marker_key
+                                and m._Organism_key != 1
+                                and m._Marker_key = a._Object_key
+                                and a._MGIType_key = 2
+                                and a._logicaldb_key = 55
+                                and a.preferred = 1
+                                ''' % (tbl1, tbl1), 'auto')
                         for r in results:
                                 _stamp(r)
          
@@ -992,15 +947,13 @@ def _handleMultipleMarkers():
         # This function leaves scratchpad with only genotypes having a single
         # marker due to traditional marker-to-allele pairings.
 
-        #EXPRESSES_MOUSE_GENE = 12965808	# term key for 'expresses_mouse_gene'
-
-        _stamp('15:_handleMultipleMarkers/rule #2 : transgene, 1 EC, 0 MI')
+        _stamp('15:_handleMultipleMarkers/rule #2 : mouse transgene, 1 EC, 0 MI')
 
         before = _getCount('genotype_keepers')
 
         template = '''
                 insert into genotype_keepers
-                select distinct s._Genotype_key, \'rule #2 : transgene, 1 EC, 0 MI\', %s, %s, a1.accid, a2.accid
+                select distinct s._Genotype_key, \'rule #2 : mouse transgene, 1 EC, 0 MI\', %s, %s, %s, a1.accid, a2.accid
                 from scratchpad s,
                         trad_ct tc, 
                         trad tt, 
@@ -1027,10 +980,11 @@ def _handleMultipleMarkers():
                         and s._Genotype_key = tc._Genotype_key
                         and tc.marker_count = 2
 
-                        -- one transgene
+                        -- one Mouse transgene
                         and s._Genotype_key = tt._Genotype_key
                         and tt._Marker_key = mt._Marker_key
                         and mt._Marker_Type_key = 12    -- transgene
+                        and mt._Organism_key = 1
 
                         -- one non-transgene
                         and s._Genotype_key = tn._Genotype_key
@@ -1043,7 +997,7 @@ def _handleMultipleMarkers():
                                 where r1._Category_key = 1004   -- EC relationship
                                 and mt._Marker_key = a._Marker_key
                                 and a._Allele_key = r1._Object_key_1
-                                and r1._RelationshipTerm_key = 12965808
+                                and r1._RelationshipTerm_key = 12438346 -- expresses_component
                                 and r1._Object_key_2 = nt._Marker_key
                                 )
 
@@ -1056,10 +1010,10 @@ def _handleMultipleMarkers():
                                 and r2._Object_key_2 != nt._Marker_key
                                 )
 
-                 ''' % ('%s', '%s', '%s')
+                 ''' % ('%s', '%s', '%s', '%s')
 
-        transgeneCmd = template % ('mt._Marker_key', 'mt.symbol', 'mt._Marker_key')
-        otherCmd = template % ('nt._Marker_key', 'nt.symbol', 'nt._Marker_key')
+        transgeneCmd = template % ('mt._Marker_key', 'mt._Organism_key', 'mt.symbol', 'mt._Marker_key')
+        otherCmd = template % ('nt._Marker_key', 'nt._Organism_key', 'nt.symbol', 'nt._Marker_key')
         db.sql(transgeneCmd, None)
         db.sql(otherCmd, None)
         _stamp('15:add rows to genotype_keepers for transgene rule A: %d' % (_getCount('genotype_keepers') - before))
@@ -1134,7 +1088,7 @@ def _handleMutationInvolves():
         # rule #3 Transgene clause
         #
         cmd = '''
-                select distinct s.gaccid, s.maccid, s._Genotype_key, s._Marker_key, s.symbol
+                select distinct s.gaccid, s.maccid, s._Genotype_key, s._Marker_key, s._Organism_key, s.symbol
                 into temp table mi2
                 from genotype_pair_counts c, scratchpad s, has_mutation_involves mi
                 where c.pair_count = 1
@@ -1154,7 +1108,7 @@ def _handleMutationInvolves():
                                 and b._Term_key = 11025597     
                         )
                 union
-                select distinct s.gaccid, s.maccid, s._Genotype_key, mi._Marker_key, mi.symbol
+                select distinct s.gaccid, s.maccid, s._Genotype_key, mi._Marker_key, mi._Organism_key, mi.symbol
                 from genotype_pair_counts c, scratchpad s, has_mutation_involves mi
                 where c.pair_count = 1
                         and c._Genotype_key = s._Genotype_key
@@ -1194,7 +1148,7 @@ def _handleMutationInvolves():
         #
         docking_sites = ','.join(map(str, DOCKING_SITES))
         cmd = '''
-                select s.gaccid, s.maccid, s._Genotype_key, mi._Marker_key, mi.symbol
+                select s.gaccid, s.maccid, s._Genotype_key, mi._Marker_key, mi._Organism_key, mi.symbol
                 into temp table mi3
                 from genotype_pair_counts c, scratchpad s, has_mutation_involves mi
                 where c.pair_count = 1
@@ -1234,7 +1188,7 @@ def _handleMutationInvolves():
         before = _getCount('genotype_keepers')
         cmd = '''
                 insert into genotype_keepers
-                select s._Genotype_key, \'rule #3 : non-transgene clause\', s._Marker_key, s.symbol, s.gaccid, s.maccid
+                select s._Genotype_key, \'rule #3 : non-transgene clause\', s._Marker_key, s._Organism_key, s.symbol, s.gaccid, s.maccid
                 from scratchpad s, mi1
                 where s._genotype_key = mi1._genotype_key
                 '''
@@ -1245,7 +1199,7 @@ def _handleMutationInvolves():
         before = _getCount('genotype_keepers')
         cmd = '''
                 insert into genotype_keepers
-                select s._Genotype_key, \'rule #3 : transgene clause\', mi2._Marker_key, mi2.symbol, s.gaccid, s.maccid
+                select s._Genotype_key, \'rule #3 : transgene clause\', mi2._Marker_key, mi2._Organism_key, mi2.symbol, s.gaccid, s.maccid
                 from scratchpad s, mi2
                 where s._genotype_key = mi2._genotype_key
                 '''
@@ -1256,7 +1210,7 @@ def _handleMutationInvolves():
         before = _getCount('genotype_keepers')
         cmd = '''
                 insert into genotype_keepers
-                select s._Genotype_key, \'rule #3 : docking site clause\', mi3._Marker_key, mi3.symbol, s.gaccid, s.maccid
+                select s._Genotype_key, \'rule #3 : docking site clause\', mi3._Marker_key, mi3._Organism_key, mi3.symbol, s.gaccid, s.maccid
                 from scratchpad s, mi3
                 where s._genotype_key = mi3._genotype_key
                 '''
@@ -1288,23 +1242,44 @@ def _handleTransgenes():
         # single marker is a transgene
         cmdTg = '''
                 insert into genotype_keepers
-                select s._Genotype_key, \'rule #4 : transgene\', s._Marker_key, s.symbol, s.gaccid, s.maccid
+                select s._Genotype_key, \'rule #4 : transgene\', s._Marker_key, s._Organism_key, s.symbol, s.gaccid, s.maccid
                 from scratchpad s, MRK_Marker m
-                where s._Marker_key = m._Marker_key and m._Marker_Type_key = 12 -- transgene
+                where s._Marker_key = m._Marker_key 
+                and m._Marker_Type_key = 12 -- transgene
                 '''
 
         # single marker is a transgene with one expressed component, also
         # include the expressed component marker
-        cmdEC = '''
+        cmdECMouse = '''
                 insert into genotype_keepers
-                select s._Genotype_key, \'rule #5 : transgene, 1 EC\', ec._Marker_key, s.symbol, s.gaccid, s.maccid
-                from scratchpad s, MRK_Marker m, ec_ct ct, ec ec
-                where s._Marker_key = m._Marker_key
-                and m._Marker_Type_key = 12     -- transgene
+                select s._Genotype_key, \'rule #5 : transgene mouse, 1 EC\', ec._Marker_key, ec._Organism_key, ec.symbol, s.gaccid, ma.accid as maccid
+                from scratchpad s, ec_ct ct, ec ec, ACC_Accession ma
+                where exists (select 1 from MRK_Marker m where s._Marker_key = m._Marker_key and m._Marker_Type_key = 12)     -- transgene
                 and s._Genotype_key = ec._Genotype_key
-                and ec._RelationshipTerm_key = 12965808 -- expresses_mouse_gene
+                and ec._RelationshipTerm_key = 12438346 -- expresses_component
+                and ec._Organism_key = 1
                 and s._Genotype_key = ct._Genotype_key
                 and ct.marker_count = 1
+                and ec._Marker_key = ma._Object_key
+                and ma._MGIType_key = 2
+                and ma._logicaldb_key = 1
+                and ma.preferred = 1
+                '''
+
+        cmdECNonMouse = '''
+                insert into genotype_keepers
+                select s._Genotype_key, \'rule #5 : transgene, non-mouse, 1 EC\', ec._Marker_key, ec._Organism_key, ec.symbol, s.gaccid, ma.accid as maccid
+                from scratchpad s, ec_ct ct, ec ec, ACC_Accession ma
+                where exists (select 1 from MRK_Marker m where s._Marker_key = m._Marker_key and m._Marker_Type_key = 12)     -- transgene
+                and s._Genotype_key = ec._Genotype_key
+                and ec._RelationshipTerm_key = 12438346 -- expresses_component
+                and ec._Organism_key != 1
+                and s._Genotype_key = ct._Genotype_key
+                and ct.marker_count = 1
+                and ec._Marker_key = ma._Object_key
+                and ma._MGIType_key = 2
+                and ma._logicaldb_key = 55
+                and ma.preferred = 1
                 '''
 
         # delete genotypes with transgene markers from scratchpad
@@ -1321,8 +1296,10 @@ def _handleTransgenes():
         db.sql(cmdTg, None)
         ct2 = _getCount('genotype_keepers')
         _stamp('17:add rows to genotype_keepers for transgenes: %d' % ( ct2 - ct1))
-        db.sql(cmdEC, None)
-        _stamp('17:add rows to genotype_keepers for expressed components: %d' % (_getCount('genotype_keepers') - ct2))
+        db.sql(cmdECMouse, None)
+        _stamp('17:add rows to genotype_keepers for expressed components mouse: %d' % (_getCount('genotype_keepers') - ct2))
+        db.sql(cmdECNonMouse, None)
+        _stamp('17:add rows to genotype_keepers for expressed components non-mouse: %d' % (_getCount('genotype_keepers') - ct2))
         _addKeeper()
 
         ct3 = _getCount('scratchpad')
@@ -1348,12 +1325,12 @@ def _handleDockingSites():
 
         cmd = '''
                 insert into genotype_keepers
-                select s._Genotype_key, \'rule #6 : docking site, 1 EC\', ec._Marker_key, s.symbol, s.gaccid, s.maccid
+                select s._Genotype_key, \'rule #6 : docking site, 1 EC\', ec._Marker_key, ec._Organism_key, s.symbol, s.gaccid, s.maccid
                 from scratchpad s, ec_ct ct, ec ec
                 where s._Marker_key in (%s)
                         and s._Genotype_key = ct._Genotype_key
                         and ct.marker_count = 1
-                        and ec._RelationshipTerm_key = 12965808 -- expresses_mouse_gene
+                        and ec._RelationshipTerm_key = 12438346 -- expresses_component
                         and s._Genotype_key = ec._Genotype_key
                 ''' % (docking_sites)
         ct = _getCount('genotype_keepers')
@@ -1367,7 +1344,7 @@ def _handleDockingSites():
 
         cmd = '''
                 insert into genotype_keepers
-                select s._Genotype_key, \'rule #9 : docking site, 0 EC\', s._Marker_key, s.symbol, s.gaccid, s.maccid
+                select s._Genotype_key, \'rule #9 : docking site, 0 EC\', s._Marker_key, s._Organism_key, s.symbol, s.gaccid, s.maccid
                 from scratchpad s
                 where s._Marker_key in (%d,%d)
                         -- allele attribute "inserted expressed sequence" = false
@@ -1401,12 +1378,12 @@ def _handleOtherSingles():
         # not be the sole expressed component of itself.
 
         _stamp('19:_handleOtherSingles/rule #7 : singles, allele attribute "inserted expressed sequence" = false')
-        _stamp('19:_handleOtherSingles/rule #8 : self-expressing single')
+        _stamp('19:_handleOtherSingles/rule #8 : mout self-expressing single')
 
         # singles, allele attribute "inserted expressed sequence" = false
         cmd1 = '''
                 insert into genotype_keepers
-                select s._Genotype_key, \'rule #7 : singles, allele attribute "inserted expressed sequence" = false\', s._Marker_key, s.symbol, s.gaccid, s.maccid
+                select s._Genotype_key, \'rule #7 : singles, allele attribute "inserted expressed sequence" = false\', s._Marker_key, s._Organism_key, s.symbol, s.gaccid, s.maccid
                 from scratchpad s
                 -- allele attribute "inserted expressed sequence" = false
                 where not exists (select 1 from VOC_Annot b -- allele subtype annotation
@@ -1416,16 +1393,17 @@ def _handleOtherSingles():
                                 )
                 '''
 
-        # self-expressing single
+        # mouse self-expressing single
         cmd2 = '''
                 insert into genotype_keepers
-                select s._Genotype_key, \'rule #8 : self-expressing single\', s._Marker_key, s.symbol, s.gaccid, s.maccid
+                select s._Genotype_key, \'rule #8 : mout self-expressing single\', s._Marker_key, s._Organism_key, s.symbol, s.gaccid, s.maccid
                 from scratchpad s, ec_ct ct, ec ec
                 where s._Genotype_key = ct._Genotype_key
                         and ct.marker_count = 1
-                        and ec._RelationshipTerm_key = 12965808 -- expresses_mouse_gene
+                        and ec._RelationshipTerm_key = 12438346 -- expresses_component
                         and s._Genotype_key = ec._Genotype_key
                         and s._Marker_key = ec._Marker_key
+                        and ec._Organism_key = 1
                 '''
 
         ct1 = _getCount('genotype_keepers')

@@ -71,7 +71,10 @@ testSQL = ""
 #'MGI:3797085',
 #'MGI:4430413',
 #'MGI:5527455',
-#'MGI:3842750'
+#'MGI:3842750',
+#'MGI:3522575',
+#'MGI:3522576',
+#'MGI:3522502'
 #)
 #)
 #'''
@@ -1378,8 +1381,21 @@ def _handleOtherSingles():
         # not be the sole expressed component of itself.
 
         _stamp('19:_handleOtherSingles/rule #7 : singles, allele attribute "inserted expressed sequence" = false')
-        _stamp('19:_handleOtherSingles/rule #8 : mout self-expressing single')
+        _stamp('19:_handleOtherSingles/rule #8 : mouse self-expressing single')
 
+        db.sql('''
+                select s._Genotype_key
+                into temp table exclude_genotypes
+                from scratchpad s
+                where exists (select 1 from VOC_Annot b -- allele subtype annotation
+                                where b._AnnotType_key = 1014   
+                                and s._Allele_key = b._Object_key -- inserted expressed sequence
+                                and b._Term_key = 11025597     
+                                )
+                ''', None)
+        db.sql('create index idx_exclude_genotypes on exclude_genotypes (_Genotype_key)', None)
+
+        # mouse self-expressing single
         # singles, allele attribute "inserted expressed sequence" = false
         cmd1 = '''
                 insert into genotype_keepers
@@ -1391,12 +1407,13 @@ def _handleOtherSingles():
                                 and s._Allele_key = b._Object_key -- inserted expressed sequence
                                 and b._Term_key = 11025597     
                                 )
+                and not exists (select 1 from exclude_genotypes e where s._genotype_key = e._genotype_key)
                 '''
 
         # mouse self-expressing single
         cmd2 = '''
                 insert into genotype_keepers
-                select s._Genotype_key, \'rule #8 : mout self-expressing single\', s._Marker_key, s._Organism_key, s.symbol, s.gaccid, s.maccid
+                select s._Genotype_key, \'rule #8 : mouse self-expressing single\', s._Marker_key, s._Organism_key, s.symbol, s.gaccid, s.maccid
                 from scratchpad s, ec_ct ct, ec ec
                 where s._Genotype_key = ct._Genotype_key
                         and ct.marker_count = 1
@@ -1413,6 +1430,7 @@ def _handleOtherSingles():
         db.sql(cmd2, None)
         _stamp('19:add rows to genotype_keepers for self-expressing singles: %d\n' % (_getCount('genotype_keepers') - ct2))
         _addKeeper()
+        db.sql('drop table if exists exclude_genotypes', None);
 
         return
 
@@ -1507,12 +1525,22 @@ def _initializeKeyMaps():
                 select distinct aa._Object_key, %s
                 from genotype_keepers k, ACC_Accession aa, MRK_Marker m
                 where k._Marker_key = aa._Object_key
-                        and aa._MGIType_key = 2
-                        and aa.private = 0
-                        and aa.preferred = 1
-                        and aa._LogicalDB_key = 1
-                        and k._Marker_key = m._Marker_key
+                and aa._MGIType_key = 2
+                and aa.private = 0
+                and aa.preferred = 1
+                and aa._LogicalDB_key = 1
+                and k._Marker_key = m._Marker_key
                 ''' % (accID)
+                #union
+                #select distinct aa._Object_key, %s
+                #from genotype_keepers k, ACC_Accession aa, MRK_Marker m
+                #where k._Marker_key = aa._Object_key
+                #and aa._MGIType_key = 2
+                #and aa.preferred = 1
+                #and aa._LogicalDB_key = 55
+                #and k._Marker_key = m._Marker_key
+                #and m._Organism_key != 1
+                #''' % (accID, accID)
         MARKER_MAP = KeyMap(markerCmd, '_Object_key', 'accID')
 
         # map from reference keys to their Jnum IDs

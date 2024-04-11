@@ -1,0 +1,18 @@
+#!/bin/csh -f
+
+#
+# defaults for annotation load of "Mammalian Phenotype/Non-Mouse Marker (Derived)" annotation type
+#
+
+#source ${ANNOTLOAD}/Configuration
+
+setenv ANNOTDATADIR	${DATALOADSOUTPUT}/rollupload/input
+setenv ANNOTMODE	new
+setenv ANNOTTYPENAME	"Mammalian Phenotype/Non-Mouse Marker (Derived)"
+setenv ANNOTPROPERTY    86
+setenv ANNOTINPUTFILE	${ANNOTDATADIR}/mpMarkerNonMouse.annot
+setenv ANNOTLOG		${ANNOTINPUTFILE}.log
+setenv DELETEREFERENCE	"J:0"
+setenv DELETEUSER	"none"
+setenv ANNOTOBSOLETE	0
+

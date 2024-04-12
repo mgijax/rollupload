@@ -3,8 +3,8 @@
 #
 #
 
-TAG: rollupload-6-0-23-?
-DATE: ?
+TAG: rollupload-6-0-23-2
+DATE: 04/12/2024
 STAFF: lec
 wts2-1452/Modify Roll up rules to include expressed non-mouse genes
 #       new file:   bin/checkMouseMP.csh

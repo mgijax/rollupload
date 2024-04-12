@@ -48,15 +48,17 @@
 #
 # 11. run full rollupload.sh
 #
-# 12. install rollupload on Scrum; run rollupload.sh; check
+# 12. run: checkNonMouseMP.csh
 #
-# 13. make mgi-testdb4/scrumdog backup
+# 13. install rollupload on Scrum; run rollupload.sh; check
 #
-# 14. run Scrum/FEWI pipeline
+# 14. make mgi-testdb4/scrumdog backup
 #
-# 15. send to Sue
+# 15. run Scrum/FEWI pipeline
 #
-# 16. if making a tag:
+# 16. send to Sue
+#
+# 17. if making a tag:
 #       make sure all DEBUG = False
 #       rollupload.sh: turn on rollup_check.py
 #

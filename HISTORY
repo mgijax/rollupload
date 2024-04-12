@@ -2,6 +2,21 @@
 # See README for testing instructions
 #
 #
+
+TAG: rollupload-6-0-23-?
+DATE: ?
+STAFF: lec
+wts2-1452/Modify Roll up rules to include expressed non-mouse genes
+#       new file:   bin/checkMouseMP.csh
+#       new file:   bin/checkNonMouseMP.csh
+#       new file:   diseaseMarkerNonMouse.csh.config.default
+#       new file:   mpMarkerNonMouse.csh.config.default
+#       modified:   bin/rollupload.py
+#       modified:   bin/rollupload.sh
+#       modified:   bin/rollupmarkerlib.py
+#       modified:   mpMarker.csh.config.default
+#       modified:   rollupload.config.default
+
 TAG: rollupload-6-0-23-1
 DATE: 04/10/2024
 STAFF: lec

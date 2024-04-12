@@ -19,9 +19,11 @@ DEBUG = False
 
 # annotation formatted file
 annotFileName = None
+annotFileName2 = None
 
 # annotation file pointer
 annotFile = None
+annotFile2 = None
 
 annotType = ""
 
@@ -35,6 +37,7 @@ def initialize():
         # Throws: nothing
 
         global annotFileName, annotFile, annotType
+        global annotFileName2, annotFile2
 
         try:
                 annotFileName = os.environ['INFILE_NAME']
@@ -47,6 +50,20 @@ def initialize():
         except:
                 print('Cannot open output file: %s' % annotFileName)
                 return 1
+
+        # used for mpMarkerNonMouse
+        if "INFILE_NAME2" in os.environ:
+                try:
+                        annotFileName2 = os.environ['INFILE_NAME2']
+                except:
+                        print('INFILE_NAME2 not defined in environment')
+                        return 1
+        
+                try:
+                        annotFile2 = open(annotFileName2, 'w')
+                except:
+                        print('Cannot open output file: %s' % annotFileName2)
+                        return 1
 
         if len(sys.argv) < 2:
                 print('Need to specify annotation type on command-line')
@@ -74,13 +91,20 @@ def finalize():
         # Effects: closes output file
         # Throws: nothing
 
-        global annotFile
+        global annotFile, annotFile2
 
         try:
                 annotFile.close()
         except:
                 print('Failed to close output file properly: %s' % annotFileName)
                 return 1
+
+        if "INFILE_NAME2" in os.environ:
+                try:
+                        annotFile2.close()
+                except:
+                        print('Failed to close output file properly: %s' % annotFileName2)
+                        return 1
 
         return 0
 
@@ -104,7 +128,7 @@ elif annotType in ('diseaseAllele', 'mpAllele'):
 #   7. username
 #   8. empty (use the current date by default)
 #   9. notes - optional
-#  10. empty (default column 2 to MGI marker IDs)
+#  10. 'MGI' (mouse) or 'Entrez Gene' (non-mouse)
 #  11. properties - optional
 
 if DEBUG:
@@ -112,19 +136,32 @@ if DEBUG:
 else:
         annotLine = '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n'
 
+# split diseaseMarker -> diseaseMarker (INFILE_NAME), diseaseMarkerNonMouse (INFILE_NAME2)
+# split mpMarker -> mpMarker (INFILE_NAME), mpMarkerNonMouse (INFILE_NAME2)
 if annotType in ('diseaseMarker', 'mpMarker'):
         marker = rollupmarkerlib.getNextMarker()
         while marker:
                 for annot in marker.getAnnotations():
-                        annotFile.write(annotLine % tuple(annot))
+                        # skip; no entrez gene id
+                        if annot[1] == None:
+                                continue
+                        elif DEBUG == True:
+                                annotFile.write(annotLine % tuple(annot))
+                        # mouse
+                        elif annot[9] == 'MGI':
+                                annotFile.write(annotLine % tuple(annot))
+                        # non-mouse
+                        else:
+                                annotFile2.write(annotLine % tuple(annot))
                 marker = rollupmarkerlib.getNextMarker()
+
 elif annotType in ('diseaseAllele', 'mpAllele'):
         allele = rollupallelelib.getNextAllele()
         while allele:
                 for annot in allele.getAnnotations():
                         annotFile.write(annotLine % tuple(annot))
                 allele = rollupallelelib.getNextAllele()
-
+        
 if finalize():
         sys.exit(1)
 

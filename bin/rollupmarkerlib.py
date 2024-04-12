@@ -10,6 +10,22 @@
 #
 # see the README file for testing instructions
 #
+# see checkNonMouse.csh to check/verify the results of the Derived Annotations:
+#       1015/MP/Marker (Derived)           related to 1002 (MP/Genotype)
+#       1031/MP/Non-Mouse Marker (Derived) related to 1002 (MP/Genotype)
+#       1023/DO/Marker (Derived)           related to 1020 (DO/Genotype)
+#       1032/DO/Non-Mouse Marker (Derived) related to 1020 (DO/Genotype)
+#
+# The Derived Annotations use the VOC_Evidence_Property._evidenceproperty_key, value to
+# store the annotation/genotype information that the rollupload uses to make its decisions 
+# about which Marker is rolled up to which MP/DO term.
+#
+# for MP (1015/1031) : SOURCE_ANNOT_KEY/VOC_Evidene_Property._propertyterm_key = 13576001
+#       value = VOC_Annot._Annot_key where _AnnotType_key = 1002, _Term_key = MP term, _Object_key = _Genotype_key
+#
+# for DO (1023/1032) : SOURCE_ANNOT_KEY/VOC_Evidence_Property._propertyterm_key = 13611348
+#       value = VOC_Annot._Annot_key where _AnnotType_key = 1020, _Term_key = DO term, _Object_key = _Genotype_key
+#
 
 import gc
 import os
@@ -49,7 +65,8 @@ LAST_MARKER_KEY_INDEX = None	# index into MARKER_KEYS of last marker key which h
 MARKERS_TO_DO = []		# list of markers loaded and waiting to be processed
 
 TERM_MAP = None			# KeyMap for term key -> term ID
-MARKER_MAP = None		# KeyMap for marker key -> marker ID
+MARKER_MAP = None		# KeyMap for marker key -> marker or entrezgene ID
+LOGICALDB_MAP = None		# KeyMap for logicaldb key -> marker or entrezgene logicald db key
 JNUM_MAP = None			# KeyMap for refs key -> J: number
 EVIDENCE_MAP = None		# KeyMap for evidence key -> evidence abbrev.
 QUALIFIER_MAP = None		# KeyMap for qualifier key -> qualifier term
@@ -74,7 +91,11 @@ testSQL = ""
 #'MGI:3842750',
 #'MGI:3522575',
 #'MGI:3522576',
-#'MGI:3522502'
+#'MGI:3522502',
+#'MGI:5052308',
+#'MGI:2671158',
+#'MGI:3700949',
+#'MGI:3522576'
 #)
 #)
 #'''
@@ -112,15 +133,13 @@ class KeyMap:
 
 class Marker:
         # Is: a single marker from the database
-        # Has: a marker key and sets of annotations, evidence, evidence
-        #	properties, and evidence notes that can be rolled up to that
-        #	marker.
-        # Does: converts primary keys and annotation types so the data can
-        #	be extracted from the object for loading into the database
-        #	with no primary key conflicts
+        # Has: a marker key and sets of annotations, evidence, evidence properties, 
+        #       and evidence notes that can be rolled up to that marker.
+        # Does: converts primary keys and annotation types so the data can be 
+        #       extracted from the object for loading into the database with no primary key conflicts
         # Notes: Once you call a get*() method to extract data from this
-        #	object, you can no longer call any set*() methods.  This is
-        #	due to the need to prepare the data (as noted above).
+        #	object, you can no longer call any set*() methods.  
+        #       This is due to the need to prepare the data (as noted above).
 
         def __init__ (self, markerKey):
                 # constructor; initializes object for marker with given key
@@ -162,8 +181,7 @@ class Marker:
                 return notes.replace('\n', ' ').replace('\t', ' ').strip()
 
         def _buildPropertiesValue (self, evidenceKey):
-                # build a str.to encapsulate the various properties in the
-                # manner expected by the annotload
+                # build a str.to encapsulate the various properties in the manner expected by the annotload
 
                 stanzas = []
 
@@ -232,6 +250,7 @@ class Marker:
 
                         termID = TERM_MAP.get(annotRow['_Term_key'])
                         markerID = MARKER_MAP.get(annotRow['_Marker_key'])
+                        logicaldb = LOGICALDB_MAP.get(annotRow['_Marker_key'])
                         qualifier = QUALIFIER_MAP.get( annotRow['_Qualifier_key'])
 
                         if qualifier == None:
@@ -260,8 +279,7 @@ class Marker:
 
                                 notes = self._concatenateNotes(evidKey)
 
-                                # build properties str.to include any
-                                # properties
+                                # build properties str.to include any properties
 
                                 properties = self._buildPropertiesValue(evidKey)
 
@@ -281,7 +299,7 @@ class Marker:
                                                 user,
                                                 '',
                                                 notes,
-                                                '',
+                                                logicaldb,
                                                 properties
                                                 ]
 
@@ -1489,7 +1507,7 @@ def _initializeKeyMaps():
         # initialize the mappings from various database keys to their
         # respective values
 
-        global TERM_MAP, MARKER_MAP, JNUM_MAP, EVIDENCE_MAP
+        global TERM_MAP, MARKER_MAP, LOGICALDB_MAP, JNUM_MAP, EVIDENCE_MAP
         global QUALIFIER_MAP, USER_MAP, PROPERTY_MAP, CURRENT_ANNOT_TYPE
 
         _stamp('23:_initializeKeyMaps')
@@ -1522,7 +1540,7 @@ def _initializeKeyMaps():
                 accID = "aa.accID as accID"
 
         markerCmd = '''
-                select distinct aa._Object_key, %s
+                select distinct aa._Object_key, 'MGI' as logicaldb, %s
                 from genotype_keepers k, ACC_Accession aa, MRK_Marker m
                 where k._Marker_key = aa._Object_key
                 and aa._MGIType_key = 2
@@ -1530,18 +1548,18 @@ def _initializeKeyMaps():
                 and aa.preferred = 1
                 and aa._LogicalDB_key = 1
                 and k._Marker_key = m._Marker_key
-                ''' % (accID)
-                #union
-                #select distinct aa._Object_key, %s
-                #from genotype_keepers k, ACC_Accession aa, MRK_Marker m
-                #where k._Marker_key = aa._Object_key
-                #and aa._MGIType_key = 2
-                #and aa.preferred = 1
-                #and aa._LogicalDB_key = 55
-                #and k._Marker_key = m._Marker_key
-                #and m._Organism_key != 1
-                #''' % (accID, accID)
+                union
+                select distinct aa._Object_key, 'Entrez Gene', %s
+                from genotype_keepers k, ACC_Accession aa, MRK_Marker m
+                where k._Marker_key = aa._Object_key
+                and aa._MGIType_key = 2
+                and aa.preferred = 1
+                and aa._LogicalDB_key = 55
+                and k._Marker_key = m._Marker_key
+                and m._Organism_key != 1
+                ''' % (accID, accID)
         MARKER_MAP = KeyMap(markerCmd, '_Object_key', 'accID')
+        LOGICALDB_MAP = KeyMap(markerCmd, '_Object_key', 'logicaldb')
 
         # map from reference keys to their Jnum IDs
         jnumCmd = '''
@@ -1692,8 +1710,7 @@ def _makeDictionary (rows, keyField):
                 #print(type(keyField))
                 #print(type(row))
                 if not row.has_key(keyField):
-                        raise Error('Missing key (%s) in row: %s' % (
-                                keyField, str(row)))
+                        raise Error('Missing key (%s) in row: %s' % (keyField, str(row)))
                 key = row[keyField]
 
                 if key not in out:
@@ -1746,8 +1763,7 @@ def _getEvidence (startMarker, endMarker):
         return _makeDictionary (results, '_Annot_key'), results
 
 def _getEvidenceProperties (startMarker, endMarker, rawEvidence):
-        # get all the properties from VOC_Evidence_Property for evidence
-        # records, which are for annotations which can be rolled up to markers
+        # get all the properties from VOC_Evidence_Property for evidence records, which are for annotations which can be rolled up to markers
         # between the given 'startMarker' and 'endMarker', inclusive.
         # Returns: { _AnnotEvidence_key : [ property rows ] }
 
@@ -1803,10 +1819,9 @@ def _getEvidenceProperties (startMarker, endMarker, rawEvidence):
                 for row in rows:
                         markerKey = row['_Marker_key']
 
-                        # if we don't already have a source row involving this
-                        # marker, then copy the current property row as a
-                        # starting point, then update the copy with necessary
-                        # altered values
+                        # if we don't already have a source row involving this marker, 
+                        # then copy the current property row as a starting point, 
+                        # then update the copy with necessary altered values
 
                         pair = (evidenceKey, markerKey)
                         if pair in evidenceMarkerPairs:
@@ -1816,11 +1831,9 @@ def _getEvidenceProperties (startMarker, endMarker, rawEvidence):
                         seqNum = seqNum + 1
 
                         newProperty = copy.copy(row)
-
                         newProperty['_PropertyTerm_key'] = SOURCE_ANNOT_KEY
                         newProperty['sequenceNum'] = seqNum
                         newProperty['value'] = newProperty['_Annot_key']
-
                         seqRows.append(newProperty)
 
                 # and add the new source property
@@ -1836,10 +1849,8 @@ def _getEvidenceProperties (startMarker, endMarker, rawEvidence):
                 evidenceKey = row['_AnnotEvidence_key']
                 markerKey = row['_Marker_key']
 
-                pair = (evidenceKey, markerKey)
-
                 # Add a source row if the annotation had no evidence at all.
-
+                pair = (evidenceKey, markerKey)
                 if pair not in evidenceMarkerPairs:
                         r = {
                                 '_Marker_key' : markerKey,
@@ -1968,9 +1979,8 @@ def _splitNotesByMarker (notes):
         return byMarker
 
 def _getMarkers (startMarker, endMarker):
-        # get a list of Marker objects (including annotations, evidence, and
-        # properties) for all markers between (and including) the two given
-        # marker keys
+        # get a list of Marker objects (including annotations, evidence, and properties) 
+        # for all markers between (and including) the two given marker keys
 
         _stamp('24:_getMarkers')
 

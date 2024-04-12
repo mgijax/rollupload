@@ -105,7 +105,8 @@ echo 'Running rollupload.py diseaseMarker' >> ${LOG_DIAG}
 ANNOTPROPERTY=`grep '^setenv ANNOTPROPERTY' ${ROLLUPLOAD}/diseaseMarker.csh.config | awk '{print $3}'`
 export ANNOTPROPERTY
 INFILE_NAME=${DISEASEMARKER_INFILE_NAME}
-export INFILE_NAME
+INFILE_NAME2=${DISEASEMARKERNONMOUSE_INFILE_NAME}
+export INFILE_NAME INFILE_NAME2
 ${PYTHON} ${ROLLUPLOAD}/bin/rollupload.py diseaseMarker >> ${LOG_DIAG} 2>&1
 STAT=$?
 checkStatus ${STAT} "${ROLLUPLOAD}/bin/rollupload.py diseaseMarker"
@@ -117,7 +118,8 @@ echo 'Running rollupload.py mpMarker' >> ${LOG_DIAG}
 ANNOTPROPERTY=`grep '^setenv ANNOTPROPERTY' ${ROLLUPLOAD}/mpMarker.csh.config | awk '{print $3}'`
 export ANNOTPROPERTY
 INFILE_NAME=${MPMARKER_INFILE_NAME}
-export INFILE_NAME
+INFILE_NAME2=${MPMARKERNONMOUSE_INFILE_NAME}
+export INFILE_NAME INFILE_NAME2
 ${PYTHON} ${ROLLUPLOAD}/bin/rollupload.py mpMarker >> ${LOG_DIAG} 2>&1
 STAT=$?
 checkStatus ${STAT} "${ROLLUPLOAD}/bin/rollupload.py mpMarker"
@@ -125,26 +127,26 @@ checkStatus ${STAT} "${ROLLUPLOAD}/bin/rollupload.py mpMarker"
 #
 # create disease/allele input file for annotation load
 #
-echo 'Running rollupload.py diseaseAllele' >> ${LOG_DIAG}
-ANNOTPROPERTY=`grep '^setenv ANNOTPROPERTY' ${ROLLUPLOAD}/diseaseAllele.csh.config | awk '{print $3}'`
-export ANNOTPROPERTY
-INFILE_NAME=${DISEASEALLELE_INFILE_NAME}
-export INFILE_NAME
-${PYTHON} ${ROLLUPLOAD}/bin/rollupload.py diseaseAllele >> ${LOG_DIAG} 2>&1
-STAT=$?
-checkStatus ${STAT} "${ROLLUPLOAD}/bin/rollupload.py diseaseAllele"
+#echo 'Running rollupload.py diseaseAllele' >> ${LOG_DIAG}
+#ANNOTPROPERTY=`grep '^setenv ANNOTPROPERTY' ${ROLLUPLOAD}/diseaseAllele.csh.config | awk '{print $3}'`
+#export ANNOTPROPERTY
+#INFILE_NAME=${DISEASEALLELE_INFILE_NAME}
+#export INFILE_NAME
+#${PYTHON} ${ROLLUPLOAD}/bin/rollupload.py diseaseAllele >> ${LOG_DIAG} 2>&1
+#STAT=$?
+#checkStatus ${STAT} "${ROLLUPLOAD}/bin/rollupload.py diseaseAllele"
 
 #
 # create MP/allele input file for annotation load
 #
-echo 'Running rollupload.py mpAllele' >> ${LOG_DIAG}
-ANNOTPROPERTY=`grep '^setenv ANNOTPROPERTY' ${ROLLUPLOAD}/mpAllele.csh.config | awk '{print $3}'`
-export ANNOTPROPERTY
-INFILE_NAME=${MPALLELE_INFILE_NAME}
-export INFILE_NAME
-${PYTHON} ${ROLLUPLOAD}/bin/rollupload.py mpAllele >> ${LOG_DIAG} 2>&1
-STAT=$?
-checkStatus ${STAT} "${ROLLUPLOAD}/bin/rollupload.py mpAllele"
+#echo 'Running rollupload.py mpAllele' >> ${LOG_DIAG}
+#ANNOTPROPERTY=`grep '^setenv ANNOTPROPERTY' ${ROLLUPLOAD}/mpAllele.csh.config | awk '{print $3}'`
+#export ANNOTPROPERTY
+#INFILE_NAME=${MPALLELE_INFILE_NAME}
+#export INFILE_NAME
+#${PYTHON} ${ROLLUPLOAD}/bin/rollupload.py mpAllele >> ${LOG_DIAG} 2>&1
+#STAT=$?
+#checkStatus ${STAT} "${ROLLUPLOAD}/bin/rollupload.py mpAllele"
 
 #
 # run annotation load for disease/marker
@@ -157,6 +159,16 @@ STAT=$?
 checkStatus ${STAT} "${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} diseaseMarker"
 
 #
+# run annotation load for disease/marker non-mouse
+#
+COMMON_CONFIG_CSH=${ROLLUPLOAD}/diseaseMarkerNonMouse.csh.config
+echo "Running disease non-mouse rollupload annotation load" >> ${LOG_DIAG}
+cd ${OUTPUTDIR}
+${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} diseaseMarkerNonMouse >> ${LOG_DIAG}
+STAT=$?
+checkStatus ${STAT} "${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} diseaseMarkerNonMouse"
+
+#
 # run annotation load for MP/marker
 #
 COMMON_CONFIG_CSH=${ROLLUPLOAD}/mpMarker.csh.config
@@ -167,32 +179,42 @@ STAT=$?
 checkStatus ${STAT} "${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} mpMarker"
 
 #
+# run annotation load for MP/marker non-mouse
+#
+COMMON_CONFIG_CSH=${ROLLUPLOAD}/mpMarkerNonMouse.csh.config
+echo "Running MP non-mouse rollupload annotation load" >> ${LOG_DIAG}
+cd ${OUTPUTDIR}
+${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} mpMarkerNonMouse >> ${LOG_DIAG}
+STAT=$?
+checkStatus ${STAT} "${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} mpMarkerNonMouse"
+
+#
 # run annotation load for disease/allele
 #
-COMMON_CONFIG_CSH=${ROLLUPLOAD}/diseaseAllele.csh.config
-echo "Running disease rollupload annotation load" >> ${LOG_DIAG}
-cd ${OUTPUTDIR}
-${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} diseaseAllele >> ${LOG_DIAG}
-STAT=$?
-checkStatus ${STAT} "${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} diseaseAllele"
+#COMMON_CONFIG_CSH=${ROLLUPLOAD}/diseaseAllele.csh.config
+#echo "Running disease rollupload annotation load" >> ${LOG_DIAG}
+#cd ${OUTPUTDIR}
+#${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} diseaseAllele >> ${LOG_DIAG}
+#STAT=$?
+#checkStatus ${STAT} "${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} diseaseAllele"
 
 #
 # run annotation load for MP/allele
 #
-COMMON_CONFIG_CSH=${ROLLUPLOAD}/mpAllele.csh.config
-echo "Running MP rollupload annotation load" >> ${LOG_DIAG}
-cd ${OUTPUTDIR}
-${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} mpAllele >> ${LOG_DIAG}
-STAT=$?
-checkStatus ${STAT} "${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} mpAllele"
+#COMMON_CONFIG_CSH=${ROLLUPLOAD}/mpAllele.csh.config
+#echo "Running MP rollupload annotation load" >> ${LOG_DIAG}
+#cd ${OUTPUTDIR}
+#${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} mpAllele >> ${LOG_DIAG}
+#STAT=$?
+#checkStatus ${STAT} "${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} mpAllele"
 
 #
 # run check
 #
-echo "Running checker" >> ${LOG_DIAG}
-cd ${OUTPUTDIR}
-${PYTHON} ${ROLLUPLOAD}/bin/rollup_check.py ${MGD_DBSERVER} ${MGD_DBNAME} >> ${LOG_DIAG} 2>&1
-STAT=$?
+#echo "Running checker" >> ${LOG_DIAG}
+#cd ${OUTPUTDIR}
+#${PYTHON} ${ROLLUPLOAD}/bin/rollup_check.py ${MGD_DBSERVER} ${MGD_DBNAME} >> ${LOG_DIAG} 2>&1
+#STAT=$?
 
 #
 # run postload cleanup and email logs

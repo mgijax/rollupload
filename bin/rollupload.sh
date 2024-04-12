@@ -124,6 +124,9 @@ ${PYTHON} ${ROLLUPLOAD}/bin/rollupload.py mpMarker >> ${LOG_DIAG} 2>&1
 STAT=$?
 checkStatus ${STAT} "${ROLLUPLOAD}/bin/rollupload.py mpMarker"
 
+# unset this variable so the other processes ignore it
+unset INFILE_NAME2
+
 #
 # create disease/allele input file for annotation load
 #

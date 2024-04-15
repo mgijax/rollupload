@@ -169,7 +169,7 @@ echo "Running disease non-mouse rollupload annotation load" >> ${LOG_DIAG}
 cd ${OUTPUTDIR}
 ${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} diseaseMarker >> ${LOG_DIAG}
 STAT=$?
-checkStatus ${STAT} "${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} diseaseMarkerNonMouse"
+checkStatus ${STAT} "${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} diseaseMarker"
 
 #
 # run annotation load for MP/marker
@@ -189,7 +189,7 @@ echo "Running MP non-mouse rollupload annotation load" >> ${LOG_DIAG}
 cd ${OUTPUTDIR}
 ${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} mpMarker >> ${LOG_DIAG}
 STAT=$?
-checkStatus ${STAT} "${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} mpMarkerNonMouse"
+checkStatus ${STAT} "${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} mpMarker"
 
 #
 # run annotation load for disease/allele

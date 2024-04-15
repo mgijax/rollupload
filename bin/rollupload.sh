@@ -167,7 +167,7 @@ checkStatus ${STAT} "${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} diseaseMarker"
 COMMON_CONFIG_CSH=${ROLLUPLOAD}/diseaseMarkerNonMouse.csh.config
 echo "Running disease non-mouse rollupload annotation load" >> ${LOG_DIAG}
 cd ${OUTPUTDIR}
-${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} diseaseMarkerNonMouse >> ${LOG_DIAG}
+${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} diseaseMarker >> ${LOG_DIAG}
 STAT=$?
 checkStatus ${STAT} "${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} diseaseMarkerNonMouse"
 
@@ -187,7 +187,7 @@ checkStatus ${STAT} "${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} mpMarker"
 COMMON_CONFIG_CSH=${ROLLUPLOAD}/mpMarkerNonMouse.csh.config
 echo "Running MP non-mouse rollupload annotation load" >> ${LOG_DIAG}
 cd ${OUTPUTDIR}
-${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} mpMarkerNonMouse >> ${LOG_DIAG}
+${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} mpMarker >> ${LOG_DIAG}
 STAT=$?
 checkStatus ${STAT} "${ANNOTLOADER_CSH} ${COMMON_CONFIG_CSH} mpMarkerNonMouse"
 
